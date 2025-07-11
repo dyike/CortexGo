@@ -20,7 +20,7 @@ func NewFundamentalAnalyst(config *config.Config) *FundamentalAnalyst {
 
 func (f *FundamentalAnalyst) Process(ctx context.Context, state *models.AgentState) (*models.AgentState, error) {
 	analysis := fmt.Sprintf("Fundamental analysis for %s: Analyzing P/E ratio, revenue growth, and market position.", state.CurrentSymbol)
-	
+
 	report := models.AnalysisReport{
 		Analyst:    f.Name(),
 		Symbol:     state.CurrentSymbol,
@@ -34,7 +34,7 @@ func (f *FundamentalAnalyst) Process(ctx context.Context, state *models.AgentSta
 			"debt_ratio":     0.3,
 		},
 	}
-	
+
 	state.Reports = append(state.Reports, report)
 	return state, nil
 }
@@ -51,7 +51,7 @@ func NewSentimentAnalyst(config *config.Config) *SentimentAnalyst {
 
 func (s *SentimentAnalyst) Process(ctx context.Context, state *models.AgentState) (*models.AgentState, error) {
 	analysis := fmt.Sprintf("Sentiment analysis for %s: Analyzing social media sentiment and market mood.", state.CurrentSymbol)
-	
+
 	report := models.AnalysisReport{
 		Analyst:    s.Name(),
 		Symbol:     state.CurrentSymbol,
@@ -65,7 +65,7 @@ func (s *SentimentAnalyst) Process(ctx context.Context, state *models.AgentState
 			"volume_trend":     "increasing",
 		},
 	}
-	
+
 	state.Reports = append(state.Reports, report)
 	return state, nil
 }
@@ -82,7 +82,7 @@ func NewTechnicalAnalyst(config *config.Config) *TechnicalAnalyst {
 
 func (t *TechnicalAnalyst) Process(ctx context.Context, state *models.AgentState) (*models.AgentState, error) {
 	analysis := fmt.Sprintf("Technical analysis for %s: Analyzing charts, indicators, and price patterns.", state.CurrentSymbol)
-	
+
 	report := models.AnalysisReport{
 		Analyst:    t.Name(),
 		Symbol:     state.CurrentSymbol,
@@ -97,7 +97,7 @@ func (t *TechnicalAnalyst) Process(ctx context.Context, state *models.AgentState
 			"moving_avg_200": 118.32,
 		},
 	}
-	
+
 	state.Reports = append(state.Reports, report)
 	return state, nil
 }
@@ -114,7 +114,7 @@ func NewNewsAnalyst(config *config.Config) *NewsAnalyst {
 
 func (n *NewsAnalyst) Process(ctx context.Context, state *models.AgentState) (*models.AgentState, error) {
 	analysis := fmt.Sprintf("News analysis for %s: Analyzing recent news and economic indicators.", state.CurrentSymbol)
-	
+
 	report := models.AnalysisReport{
 		Analyst:    n.Name(),
 		Symbol:     state.CurrentSymbol,
@@ -123,14 +123,15 @@ func (n *NewsAnalyst) Process(ctx context.Context, state *models.AgentState) (*m
 		Rating:     "NEUTRAL",
 		Confidence: 0.70,
 		Metrics: map[string]interface{}{
-			"news_count":      15,
-			"positive_news":   8,
-			"negative_news":   3,
-			"neutral_news":    4,
-			"impact_score":    0.6,
+			"news_count":    15,
+			"positive_news": 8,
+			"negative_news": 3,
+			"neutral_news":  4,
+			"impact_score":  0.6,
 		},
 	}
-	
+
 	state.Reports = append(state.Reports, report)
 	return state, nil
 }
+
