@@ -32,6 +32,33 @@ type AnalysisReport struct {
 	Rating    string    `json:"rating"`
 	Confidence float64  `json:"confidence"`
 	Metrics   map[string]interface{} `json:"metrics"`
+	KeyFindings []string `json:"key_findings"`
+	Concerns   []string `json:"concerns"`
+	Priority   int      `json:"priority"`
+}
+
+type AnalystDiscussion struct {
+	Participants []string `json:"participants"`
+	Topic        string   `json:"topic"`
+	DebatePoints []DebatePoint `json:"debate_points"`
+	Consensus    *Consensus    `json:"consensus"`
+	Timestamp    time.Time     `json:"timestamp"`
+}
+
+type DebatePoint struct {
+	Analyst   string `json:"analyst"`
+	Position  string `json:"position"`
+	Evidence  []string `json:"evidence"`
+	Response  string `json:"response"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+type Consensus struct {
+	FinalRating    string  `json:"final_rating"`
+	AgreementLevel float64 `json:"agreement_level"`
+	MainArguments  []string `json:"main_arguments"`
+	Dissents       []string `json:"dissents"`
+	Confidence     float64  `json:"confidence"`
 }
 
 type AgentState struct {
@@ -41,4 +68,6 @@ type AgentState struct {
 	Reports       []AnalysisReport       `json:"reports"`
 	Decision      *TradingDecision       `json:"decision"`
 	Metadata      map[string]interface{} `json:"metadata"`
+	Discussions   []AnalystDiscussion    `json:"discussions"`
+	TeamConsensus *Consensus             `json:"team_consensus"`
 }

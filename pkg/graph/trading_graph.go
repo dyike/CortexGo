@@ -11,12 +11,12 @@ import (
 )
 
 type TradingAgentsGraph struct {
-	config     *config.Config
-	analysts   []agents.Agent
-	researcher agents.Agent
-	trader     agents.Agent
-	riskMgr    agents.Agent
-	debug      bool
+	config      *config.Config
+	analystTeam *agents.AnalystTeam
+	researcher  agents.Agent
+	trader      agents.Agent
+	riskMgr     agents.Agent
+	debug       bool
 }
 
 func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
@@ -29,12 +29,7 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 		debug:  debug,
 	}
 
-	graph.analysts = []agents.Agent{
-		agents.NewFundamentalAnalyst(cfg),
-		agents.NewSentimentAnalyst(cfg),
-		agents.NewTechnicalAnalyst(cfg),
-		agents.NewNewsAnalyst(cfg),
-	}
+	graph.analystTeam = agents.NewAnalystTeam(cfg)
 
 	graph.researcher = agents.NewResearcher(cfg)
 	graph.trader = agents.NewTrader(cfg)
@@ -65,21 +60,21 @@ func (g *TradingAgentsGraph) Propagate(symbol string, date string) (*models.Agen
 			Open:      124.00,
 			Close:     125.50,
 		},
-		Metadata: make(map[string]interface{}),
+		Metadata:      make(map[string]interface{}),
+		Discussions:   []models.AnalystDiscussion{},
+		TeamConsensus: nil,
 	}
 
 	if g.debug {
 		fmt.Printf("Processing %s for date %s\n", symbol, date)
 	}
 
-	for _, analyst := range g.analysts {
-		if g.debug {
-			fmt.Printf("Running %s...\n", analyst.Name())
-		}
-		state, err = analyst.Process(ctx, state)
-		if err != nil {
-			return nil, nil, fmt.Errorf("analyst %s failed: %v", analyst.Name(), err)
-		}
+	if g.debug {
+		fmt.Printf("Running analyst team discussion...\n")
+	}
+	state, err = g.analystTeam.ConductAnalysis(ctx, state)
+	if err != nil {
+		return nil, nil, fmt.Errorf("analyst team failed: %v", err)
 	}
 
 	if g.debug {
