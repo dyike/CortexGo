@@ -60,10 +60,10 @@ func (r *Researcher) Process(ctx context.Context, state *models.AgentState) (*mo
 		Rating:     consensusRating,
 		Confidence: avgConfidence,
 		Metrics: map[string]interface{}{
-			"num_reports":       len(state.Reports),
-			"consensus_rating":  consensusRating,
-			"avg_confidence":    avgConfidence,
-			"risk_level":        r.assessRisk(ratings, confidences),
+			"num_reports":      len(state.Reports),
+			"consensus_rating": consensusRating,
+			"avg_confidence":   avgConfidence,
+			"risk_level":       r.assessRisk(ratings, confidences),
 		},
 	}
 
@@ -75,7 +75,7 @@ func (r *Researcher) calculateAverageConfidence(confidences []float64) float64 {
 	if len(confidences) == 0 {
 		return 0
 	}
-	
+
 	sum := 0.0
 	for _, conf := range confidences {
 		sum += conf
@@ -91,7 +91,7 @@ func (r *Researcher) determineConsensusRating(ratings []string) string {
 
 	maxCount := 0
 	consensusRating := "NEUTRAL"
-	
+
 	for rating, count := range ratingCounts {
 		if count > maxCount {
 			maxCount = count
@@ -104,15 +104,15 @@ func (r *Researcher) determineConsensusRating(ratings []string) string {
 
 func (r *Researcher) assessRisk(ratings []string, confidences []float64) string {
 	avgConfidence := r.calculateAverageConfidence(confidences)
-	
+
 	ratingVariance := r.calculateRatingVariance(ratings)
-	
+
 	if avgConfidence < 0.5 || ratingVariance > 0.7 {
 		return "HIGH"
 	} else if avgConfidence < 0.7 || ratingVariance > 0.4 {
 		return "MEDIUM"
 	}
-	
+
 	return "LOW"
 }
 
@@ -120,15 +120,16 @@ func (r *Researcher) calculateRatingVariance(ratings []string) float64 {
 	if len(ratings) <= 1 {
 		return 0
 	}
-	
+
 	ratingCounts := make(map[string]int)
 	for _, rating := range ratings {
 		ratingCounts[rating]++
 	}
-	
+
 	if len(ratingCounts) == 1 {
 		return 0
 	}
-	
+
 	return float64(len(ratingCounts)) / float64(len(ratings))
 }
+

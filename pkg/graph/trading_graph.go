@@ -40,7 +40,7 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 
 func (g *TradingAgentsGraph) Propagate(symbol string, date string) (*models.AgentState, *models.TradingDecision, error) {
 	ctx := context.Background()
-	
+
 	parsedDate, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid date format: %v", err)
@@ -69,9 +69,6 @@ func (g *TradingAgentsGraph) Propagate(symbol string, date string) (*models.Agen
 		fmt.Printf("Processing %s for date %s\n", symbol, date)
 	}
 
-	if g.debug {
-		fmt.Printf("Running analyst team discussion...\n")
-	}
 	state, err = g.analystTeam.ConductAnalysis(ctx, state)
 	if err != nil {
 		return nil, nil, fmt.Errorf("analyst team failed: %v", err)
@@ -112,6 +109,7 @@ func (g *TradingAgentsGraph) ReflectAndRemember(positionReturns float64) error {
 	if g.debug {
 		fmt.Printf("Reflecting on position returns: %.2f\n", positionReturns)
 	}
-	
+
 	return nil
 }
+
