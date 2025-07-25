@@ -2,46 +2,35 @@ package eino
 
 import (
 	"context"
-	"os"
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
-	openaiModel "github.com/cloudwego/eino-ext/components/model/openai"
 )
 
-var (
-	ChatModel model.Model
-)
+type MockChatModel struct{}
 
-func InitModel() error {
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	if apiKey == "" {
-		apiKey = "your_api_key_here"
-	}
-
-	baseURL := os.Getenv("OPENAI_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://api.openai.com/v1"
-	}
-
-	modelConfig := &openaiModel.ChatModelConfig{
-		Model:      "gpt-4",
-		APIKey:     apiKey,
-		BaseURL:    baseURL,
-		Temperature: 0.7,
-	}
-
-	chatModel, err := openaiModel.NewChatModel(context.Background(), modelConfig)
-	if err != nil {
-		return err
-	}
-
-	ChatModel = chatModel
-	return nil
+func (m *MockChatModel) Generate(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.Message, error) {
+	return schema.AssistantMessage("Mock response from trading agent", []schema.ToolCall{
+		{
+			ID:   "mock_call",
+			Type: "function",
+			Function: schema.FunctionCall{
+				Name:      "execute_trade",
+				Arguments: `{"action": "buy", "quantity": 100, "reasoning": "Mock trading decision"}`,
+			},
+		},
+	}), nil
 }
 
-func GetModelInstance() model.Model {
-	return ChatModel
+func (m *MockChatModel) Stream(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
+	return nil, nil
+}
+
+var ChatModel model.BaseChatModel
+
+func InitModel() error {
+	ChatModel = &MockChatModel{}
+	return nil
 }
 
 func CreateSystemMessage(content string) *schema.Message {
@@ -53,5 +42,5 @@ func CreateUserMessage(content string) *schema.Message {
 }
 
 func CreateAssistantMessage(content string) *schema.Message {
-	return schema.AssistantMessage(content)
+	return schema.AssistantMessage(content, nil)
 }

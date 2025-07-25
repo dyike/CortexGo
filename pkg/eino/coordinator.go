@@ -2,7 +2,6 @@ package eino
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
@@ -64,78 +63,8 @@ Analyze the user's request and decide which agent should handle it next.`
 func NewCoordinatorNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 
-	startAnalysisTool := &schema.ToolInfo{
-		Name: "start_analysis",
-		Desc: "Start market analysis with the analyst team",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"symbol": {
-				Type:     schema.String,
-				Desc:     "The trading symbol to analyze",
-				Required: true,
-			},
-		}),
-	}
-
-	startResearchTool := &schema.ToolInfo{
-		Name: "start_research",
-		Desc: "Start deeper market research",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"research_focus": {
-				Type:     schema.String,
-				Desc:     "The specific area to research",
-				Required: true,
-			},
-		}),
-	}
-
-	makeTradeTool := &schema.ToolInfo{
-		Name: "make_trade",
-		Desc: "Execute a trading decision",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"action": {
-				Type:     schema.String,
-				Desc:     "The trading action: buy, sell, or hold",
-				Required: true,
-			},
-		}),
-	}
-
-	assessRiskTool := &schema.ToolInfo{
-		Name: "assess_risk",
-		Desc: "Perform risk assessment",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"risk_type": {
-				Type:     schema.String,
-				Desc:     "The type of risk to assess",
-				Required: true,
-			},
-		}),
-	}
-
-	generateReportTool := &schema.ToolInfo{
-		Name: "generate_report",
-		Desc: "Generate final trading report",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"report_type": {
-				Type:     schema.String,
-				Desc:     "The type of report to generate",
-				Required: true,
-			},
-		}),
-	}
-
-	tools := []*schema.ToolInfo{
-		startAnalysisTool,
-		startResearchTool,
-		makeTradeTool,  
-		assessRiskTool,
-		generateReportTool,
-	}
-
-	modelWithTools, _ := ChatModel.WithTools(tools)
-
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadCoordinatorMessages))
-	_ = g.AddChatModelNode("agent", modelWithTools)
+	_ = g.AddChatModelNode("agent", ChatModel)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(coordinatorRouter))
 
 	_ = g.AddEdge(compose.START, "load")

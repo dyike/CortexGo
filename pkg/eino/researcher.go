@@ -23,12 +23,12 @@ func researcherRouter(ctx context.Context, input *schema.Message, opts ...any) (
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
 			
 			report := models.AnalysisReport{
-				AnalystName: "MarketResearcher",
+				Analyst:     "MarketResearcher",
 				Symbol:      state.CurrentSymbol,
-				Timestamp:   state.CurrentDate,
+				Date:        state.CurrentDate,
 				Analysis:    fmt.Sprintf("%v", argMap["research_findings"]),
 				Confidence:  0.85,
-				Recommendation: fmt.Sprintf("%v", argMap["market_outlook"]),
+				Rating:      fmt.Sprintf("%v", argMap["market_outlook"]),
 			}
 			
 			state.Reports = append(state.Reports, report)
@@ -70,7 +70,7 @@ Current context:
 Previous analysis reports:`
 		
 		for _, report := range state.Reports {
-			systemPrompt += fmt.Sprintf("\n- %s: %s", report.AnalystName, report.Analysis)
+			systemPrompt += fmt.Sprintf("\n- %s: %s", report.Analyst, report.Analysis)
 		}
 
 		systemPrompt += `
@@ -98,37 +98,8 @@ Focus on company financials, industry trends, economic indicators, and market se
 func NewResearcherNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 
-	submitResearchTool := &schema.ToolInfo{
-		Name: "submit_research",
-		Desc: "Submit the completed market research",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"research_findings": {
-				Type:     schema.String,
-				Desc:     "Detailed fundamental analysis and research findings",
-				Required: true,
-			},
-			"market_outlook": {
-				Type:     schema.String,
-				Desc:     "Overall market outlook and trends",
-				Required: true,
-			},
-			"risk_factors": {
-				Type:     schema.String,
-				Desc:     "Key risk factors identified",
-				Required: true,
-			},
-			"next_agent": {
-				Type:     schema.String,
-				Desc:     "Next agent to activate: trader, risk_manager, analyst, or reporter",
-				Required: true,
-			},
-		}),
-	}
-
-	modelWithTools, _ := ChatModel.WithTools([]*schema.ToolInfo{submitResearchTool})
-
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadResearcherMessages))
-	_ = g.AddChatModelNode("agent", modelWithTools)
+	_ = g.AddChatModelNode("agent", ChatModel)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(researcherRouter))
 
 	_ = g.AddEdge(compose.START, "load")

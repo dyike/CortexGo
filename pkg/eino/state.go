@@ -14,7 +14,7 @@ type TradingState struct {
 	MarketData       *models.MarketData              `json:"market_data"`
 	Reports          []models.AnalysisReport         `json:"reports"`
 	Discussions      []models.AnalystDiscussion      `json:"discussions"`
-	TeamConsensus    *models.TeamConsensus           `json:"team_consensus"`
+	TeamConsensus    *models.Consensus               `json:"team_consensus"`
 	Decision         *models.TradingDecision         `json:"decision"`
 	Metadata         map[string]interface{}          `json:"metadata"`
 	Goto             string                          `json:"goto"`

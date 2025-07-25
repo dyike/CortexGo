@@ -1,49 +1,61 @@
 package main
 
 import (
-	"encoding/json"
+	"bufio"
+	"context"
 	"fmt"
-	"log"
+	"os"
+	"strings"
+	"time"
 
-	"github.com/dyike/CortexGo/pkg/config"
-	"github.com/dyike/CortexGo/pkg/graph"
+	"github.com/dyike/CortexGo/consts"
+	"github.com/dyike/CortexGo/pkg/eino"
 )
 
 func main() {
-	cfg := config.DefaultConfig()
-	cfg.Debug = true
-	
-	if err := cfg.EnsureDirectories(); err != nil {
-		log.Fatalf("Failed to create directories: %v", err)
-	}
-
-	ta := graph.NewTradingAgentsGraph(true, cfg)
-
-	fmt.Println("Starting trading analysis for NVDA on 2024-05-10...")
-	
-	state, decision, err := ta.Propagate("NVDA", "2024-05-10")
+	err := eino.InitModel()
 	if err != nil {
-		log.Fatalf("Trading analysis failed: %v", err)
+		fmt.Printf("Failed to initialize model: %v\n", err)
+		return
 	}
 
-	fmt.Println("\n=== TRADING DECISION ===")
-	decisionJSON, err := json.MarshalIndent(decision, "", "  ")
+	if len(os.Args) > 1 && os.Args[1] == "-s" {
+		runServer()
+		return
+	}
+	
+	runConsole()
+}
+
+func runConsole() {
+	ctx := context.Background()
+	reader := bufio.NewReader(os.Stdin)
+	
+	fmt.Print("请输入交易符号 (例如: AAPL): ")
+	symbol, _ := reader.ReadString('\n')
+	symbol = strings.TrimSpace(symbol)
+	
+	fmt.Print("请输入您的交易需求: ")
+	userPrompt, _ := reader.ReadString('\n')
+	userPrompt = strings.TrimSpace(userPrompt)
+
+	genFunc := func(ctx context.Context) *eino.TradingState {
+		return eino.NewTradingState(symbol, time.Now(), userPrompt)
+	}
+
+	orchestrator := eino.NewTradingOrchestrator[string, string, *eino.TradingState](ctx, genFunc)
+
+	fmt.Printf("\n开始处理 %s 的交易分析...\n\n", symbol)
+	
+	result, err := orchestrator.Invoke(ctx, consts.Coordinator)
 	if err != nil {
-		log.Fatalf("Failed to marshal decision: %v", err)
-	}
-	fmt.Println(string(decisionJSON))
-
-	fmt.Println("\n=== ANALYSIS REPORTS ===")
-	for i, report := range state.Reports {
-		fmt.Printf("\nReport %d (%s):\n", i+1, report.Analyst)
-		fmt.Printf("Rating: %s\n", report.Rating)
-		fmt.Printf("Confidence: %.2f\n", report.Confidence)
-		fmt.Printf("Analysis: %s\n", report.Analysis)
+		fmt.Printf("执行失败: %v\n", err)
+		return
 	}
 
-	if err := ta.ReflectAndRemember(1000.0); err != nil {
-		log.Printf("Reflection failed: %v", err)
-	}
+	fmt.Printf("交易分析完成: %s\n", result)
+}
 
-	fmt.Println("\nTrading analysis completed successfully!")
+func runServer() {
+	fmt.Println("Server mode not implemented yet")
 }

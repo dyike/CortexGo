@@ -23,12 +23,12 @@ func analystRouter(ctx context.Context, input *schema.Message, opts ...any) (out
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
 			
 			report := models.AnalysisReport{
-				AnalystName: "TechnicalAnalyst",
+				Analyst:     "TechnicalAnalyst",
 				Symbol:      state.CurrentSymbol,
-				Timestamp:   state.CurrentDate,
+				Date:        state.CurrentDate,
 				Analysis:    fmt.Sprintf("%v", argMap["analysis"]),
 				Confidence:  0.8,
-				Recommendation: fmt.Sprintf("%v", argMap["recommendation"]),
+				Rating:      fmt.Sprintf("%v", argMap["recommendation"]),
 			}
 			
 			state.Reports = append(state.Reports, report)
@@ -94,37 +94,8 @@ Focus on technical patterns, support/resistance levels, and momentum indicators.
 func NewAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 
-	submitAnalysisTool := &schema.ToolInfo{
-		Name: "submit_analysis",
-		Desc: "Submit the completed technical analysis",
-		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-			"analysis": {
-				Type:     schema.String,
-				Desc:     "Detailed technical analysis of the symbol",
-				Required: true,
-			},
-			"recommendation": {
-				Type:     schema.String,
-				Desc:     "Trading recommendation: buy, sell, or hold",
-				Required: true,
-			},
-			"confidence": {
-				Type:     schema.Number,
-				Desc:     "Confidence level in the analysis (0-1)",
-				Required: true,
-			},
-			"next_agent": {
-				Type:     schema.String,
-				Desc:     "Next agent to activate: researcher, trader, risk_manager, or reporter",
-				Required: true,
-			},
-		}),
-	}
-
-	modelWithTools, _ := ChatModel.WithTools([]*schema.ToolInfo{submitAnalysisTool})
-
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadAnalystMessages))
-	_ = g.AddChatModelNode("agent", modelWithTools)
+	_ = g.AddChatModelNode("agent", ChatModel)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(analystRouter))
 
 	_ = g.AddEdge(compose.START, "load")
