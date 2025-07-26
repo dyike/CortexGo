@@ -11,6 +11,7 @@ import (
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/graph"
+	"github.com/dyike/CortexGo/internal/models"
 )
 
 func main() {
@@ -40,11 +41,11 @@ func runConsole() {
 	userPrompt, _ := reader.ReadString('\n')
 	userPrompt = strings.TrimSpace(userPrompt)
 
-	genFunc := func(ctx context.Context) *agents.TradingState {
-		return agents.NewTradingState(symbol, time.Now(), userPrompt)
+	genFunc := func(ctx context.Context) *models.TradingState {
+		return models.NewTradingState(symbol, time.Now(), userPrompt)
 	}
 
-	orchestrator := graph.NewTradingOrchestrator[string, string, *agents.TradingState](ctx, genFunc)
+	orchestrator := graph.NewTradingOrchestrator[string, string, *models.TradingState](ctx, genFunc)
 
 	fmt.Printf("\n开始处理 %s 的交易分析...\n\n", symbol)
 

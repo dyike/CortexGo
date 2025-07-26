@@ -1,10 +1,9 @@
-package agents
+package models
 
 import (
 	"time"
 
 	"github.com/cloudwego/eino/schema"
-	"github.com/dyike/CortexGo/internal/models"
 )
 
 type InvestDebateState struct {
@@ -30,23 +29,23 @@ type RiskDebateState struct {
 }
 
 type TradingState struct {
-	Messages              []*schema.Message       `json:"messages"`
-	CompanyOfInterest     string                  `json:"company_of_interest"`
-	TradeDate             string                  `json:"trade_date"`
-	MarketData            *models.MarketData      `json:"market_data"`
-	MarketReport          string                  `json:"market_report"`
-	FundamentalsReport    string                  `json:"fundamentals_report"`
-	SentimentReport       string                  `json:"sentiment_report"`
-	NewsReport            string                  `json:"news_report"`
-	InvestmentDebateState *InvestDebateState      `json:"investment_debate_state"`
-	RiskDebateState       *RiskDebateState        `json:"risk_debate_state"`
-	TraderInvestmentPlan  string                  `json:"trader_investment_plan"`
-	InvestmentPlan        string                  `json:"investment_plan"`
-	FinalTradeDecision    string                  `json:"final_trade_decision"`
-	Decision              *models.TradingDecision `json:"decision"`
-	Goto                  string                  `json:"goto"`
-	MaxIterations         int                     `json:"max_iterations"`
-	CurrentIteration      int                     `json:"current_iteration"`
+	Messages              []*schema.Message  `json:"messages"`
+	CompanyOfInterest     string             `json:"company_of_interest"`
+	TradeDate             string             `json:"trade_date"`
+	MarketData            *MarketData        `json:"market_data"`
+	MarketReport          string             `json:"market_report"`
+	FundamentalsReport    string             `json:"fundamentals_report"`
+	SentimentReport       string             `json:"sentiment_report"`
+	NewsReport            string             `json:"news_report"`
+	InvestmentDebateState *InvestDebateState `json:"investment_debate_state"`
+	RiskDebateState       *RiskDebateState   `json:"risk_debate_state"`
+	TraderInvestmentPlan  string             `json:"trader_investment_plan"`
+	InvestmentPlan        string             `json:"investment_plan"`
+	FinalTradeDecision    string             `json:"final_trade_decision"`
+	Decision              *TradingDecision   `json:"decision"`
+	Goto                  string             `json:"goto"`
+	MaxIterations         int                `json:"max_iterations"`
+	CurrentIteration      int                `json:"current_iteration"`
 }
 
 func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingState {
@@ -56,7 +55,7 @@ func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingS
 		},
 		CompanyOfInterest: symbol,
 		TradeDate:         date.Format("2006-01-02"),
-		MarketData: &models.MarketData{
+		MarketData: &MarketData{
 			Symbol:    symbol,
 			Timestamp: date,
 		},

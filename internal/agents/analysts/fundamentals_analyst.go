@@ -1,7 +1,6 @@
 package analysts
 
 import (
-	"github.com/dyike/CortexGo/internal/agents"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,10 +8,12 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
+	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/models"
 )
 
 func fundamentalsAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
-	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
+	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		defer func() {
 			output = state.Goto
 		}()
@@ -41,7 +42,7 @@ func fundamentalsAnalystRouter(ctx context.Context, input *schema.Message, opts 
 }
 
 func loadFundamentalsAnalystMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
-	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
+	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		systemPrompt := `You are a fundamental analyst specializing in company financial analysis and valuation.
 
 Your responsibilities:

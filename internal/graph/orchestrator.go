@@ -5,16 +5,16 @@ import (
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/dyike/CortexGo/consts"
-	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/agents/analysts"
 	"github.com/dyike/CortexGo/internal/agents/managers"
 	"github.com/dyike/CortexGo/internal/agents/researchers"
 	"github.com/dyike/CortexGo/internal/agents/risk_mgmt"
 	"github.com/dyike/CortexGo/internal/agents/trader"
+	"github.com/dyike/CortexGo/internal/models"
 )
 
 func agentHandOff(ctx context.Context, input string) (next string, err error) {
-	_ = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
+	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		next = state.Goto
 		return nil
 	})
@@ -102,3 +102,4 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	}
 	return r
 }
+

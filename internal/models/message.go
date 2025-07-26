@@ -1,4 +1,4 @@
-package message
+package models
 
 import (
 	"container/list"

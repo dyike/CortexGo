@@ -6,12 +6,13 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
+	"github.com/dyike/CortexGo/internal/models"
 )
 
 // 简化的占位符节点，用于快速编译测试
 func SimpleRouter(nextNode string) func(context.Context, *schema.Message, ...any) (string, error) {
 	return func(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
-		err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+		err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 			state.Goto = nextNode
 			return nil
 		})

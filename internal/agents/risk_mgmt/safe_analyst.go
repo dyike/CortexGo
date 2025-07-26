@@ -19,3 +19,4 @@ func NewSafeAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	_ = g.AddEdge("router", compose.END)
 	return g
 }
+
