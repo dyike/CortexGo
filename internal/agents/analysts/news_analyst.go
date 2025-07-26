@@ -18,24 +18,16 @@ func newsAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) 
 			output = state.Goto
 		}()
 
+		// Mark news analyst as complete and set sequential flow
+		state.NewsAnalystComplete = true
 		state.Goto = consts.FundamentalsAnalyst
+		
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_news_analysis" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
 
 			if analysis, ok := argMap["analysis"].(string); ok {
 				state.NewsReport = analysis
-			}
-
-			if next, ok := argMap["next_step"].(string); ok && next != "" {
-				switch next {
-				case "fundamentals":
-					state.Goto = consts.FundamentalsAnalyst
-				case "bull_researcher":
-					state.Goto = consts.BullResearcher
-				default:
-					state.Goto = consts.FundamentalsAnalyst
-				}
 			}
 		}
 		return nil

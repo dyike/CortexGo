@@ -19,7 +19,6 @@ func bullResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 			output = state.Goto
 		}()
 
-		state.Goto = consts.BearResearcher
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_bull_research" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
@@ -29,14 +28,17 @@ func bullResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 				state.InvestmentDebateState.CurrentResponse = "Bull: " + research
 				state.InvestmentDebateState.Count++
 			}
-
-			// 决定下一步：如果讨论轮数足够，去研究经理；否则去熊市研究员
-			if state.InvestmentDebateState.Count >= 4 { // 2轮辩论
-				state.Goto = consts.ResearchManager
-			} else {
-				state.Goto = consts.BearResearcher
-			}
 		}
+
+		// Use conditional logic to determine next step based on debate rounds
+		if state.InvestmentDebateState.Count >= state.InvestmentDebateState.MaxRounds*2 {
+			state.DebatePhaseComplete = true
+			state.Phase = "trading"
+			state.Goto = consts.ResearchManager
+		} else {
+			state.Goto = consts.BearResearcher
+		}
+		
 		return nil
 	})
 	return output, nil

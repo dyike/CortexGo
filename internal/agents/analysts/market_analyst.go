@@ -18,28 +18,16 @@ func marketAnalystRouter(ctx context.Context, input *schema.Message, opts ...any
 			output = state.Goto
 		}()
 
+		// Mark market analyst as complete and set sequential flow
+		state.MarketAnalystComplete = true
 		state.Goto = consts.SocialMediaAnalyst
+		
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_market_analysis" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
 
 			if analysis, ok := argMap["analysis"].(string); ok {
 				state.MarketReport = analysis
-			}
-
-			if next, ok := argMap["next_step"].(string); ok && next != "" {
-				switch next {
-				case "social":
-					state.Goto = consts.SocialMediaAnalyst
-				case "fundamentals":
-					state.Goto = consts.FundamentalsAnalyst
-				case "news":
-					state.Goto = consts.NewsAnalyst
-				case "bull_researcher":
-					state.Goto = consts.BullResearcher
-				default:
-					state.Goto = consts.SocialMediaAnalyst
-				}
 			}
 		}
 		return nil

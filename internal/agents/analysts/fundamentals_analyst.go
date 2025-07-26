@@ -18,22 +18,18 @@ func fundamentalsAnalystRouter(ctx context.Context, input *schema.Message, opts 
 			output = state.Goto
 		}()
 
+		// Mark fundamentals analyst as complete and transition to debate phase
+		state.FundamentalsAnalystComplete = true
+		state.AnalysisPhaseComplete = true
+		state.Phase = "debate"
 		state.Goto = consts.BullResearcher
+		
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_fundamentals_analysis" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
 
 			if analysis, ok := argMap["analysis"].(string); ok {
 				state.FundamentalsReport = analysis
-			}
-
-			if next, ok := argMap["next_step"].(string); ok && next != "" {
-				switch next {
-				case "bull_researcher":
-					state.Goto = consts.BullResearcher
-				default:
-					state.Goto = consts.BullResearcher
-				}
 			}
 		}
 		return nil

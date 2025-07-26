@@ -13,6 +13,8 @@ type InvestDebateState struct {
 	CurrentResponse string `json:"current_response"`
 	JudgeDecision   string `json:"judge_decision"`
 	Count           int    `json:"count"`
+	MaxRounds       int    `json:"max_rounds"`
+	CurrentRound    int    `json:"current_round"`
 }
 
 type RiskDebateState struct {
@@ -26,6 +28,8 @@ type RiskDebateState struct {
 	JudgeDecision          string `json:"judge_decision"`
 	LatestSpeaker          string `json:"latest_speaker"`
 	Count                  int    `json:"count"`
+	MaxRounds              int    `json:"max_rounds"`
+	CurrentRound           int    `json:"current_round"`
 }
 
 type TradingState struct {
@@ -46,6 +50,24 @@ type TradingState struct {
 	Goto                  string             `json:"goto"`
 	MaxIterations         int                `json:"max_iterations"`
 	CurrentIteration      int                `json:"current_iteration"`
+	
+	// Enhanced fields to match Python version
+	Phase                 string             `json:"phase"`                  // Current workflow phase: analysis, debate, trading, risk
+	WorkflowComplete      bool               `json:"workflow_complete"`      // Whether the workflow has finished
+	AnalysisPhaseComplete bool               `json:"analysis_phase_complete"` // Whether all 4 analysts have completed
+	DebatePhaseComplete   bool               `json:"debate_phase_complete"`   // Whether debate phase is complete
+	TradingPhaseComplete  bool               `json:"trading_phase_complete"`  // Whether trading phase is complete
+	RiskPhaseComplete     bool               `json:"risk_phase_complete"`     // Whether risk phase is complete
+	
+	// Agent completion tracking
+	MarketAnalystComplete       bool `json:"market_analyst_complete"`
+	SocialAnalystComplete       bool `json:"social_analyst_complete"`
+	NewsAnalystComplete         bool `json:"news_analyst_complete"`
+	FundamentalsAnalystComplete bool `json:"fundamentals_analyst_complete"`
+	
+	// Memory and reflection data
+	PreviousDecisions []TradingDecision `json:"previous_decisions"` // Historical decisions for learning
+	ReflectionNotes   string           `json:"reflection_notes"`   // Reflections on past performance
 }
 
 func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingState {
@@ -63,6 +85,8 @@ func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingS
 			History:         "",
 			CurrentResponse: "",
 			Count:           0,
+			MaxRounds:       2, // Default 2 rounds of debate
+			CurrentRound:    0,
 		},
 		RiskDebateState: &RiskDebateState{
 			History:                "",
@@ -70,6 +94,8 @@ func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingS
 			CurrentSafeResponse:    "",
 			CurrentNeutralResponse: "",
 			Count:                  0,
+			MaxRounds:              2, // Default 2 rounds of risk discussion
+			CurrentRound:           0,
 		},
 		MarketReport:       "",
 		FundamentalsReport: "",
@@ -78,5 +104,19 @@ func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingS
 		MaxIterations:      20,
 		CurrentIteration:   0,
 		Goto:               "market_analyst",
+		
+		// Initialize enhanced fields
+		Phase:                       "analysis",
+		WorkflowComplete:            false,
+		AnalysisPhaseComplete:       false,
+		DebatePhaseComplete:         false,
+		TradingPhaseComplete:        false,
+		RiskPhaseComplete:           false,
+		MarketAnalystComplete:       false,
+		SocialAnalystComplete:       false,
+		NewsAnalystComplete:         false,
+		FundamentalsAnalystComplete: false,
+		PreviousDecisions:           []TradingDecision{},
+		ReflectionNotes:             "",
 	}
 }

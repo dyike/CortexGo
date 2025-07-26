@@ -3,14 +3,20 @@ package models
 import "time"
 
 type TradingDecision struct {
-	Symbol     string    `json:"symbol"`
-	Date       time.Time `json:"date"`
-	Action     string    `json:"action"`
-	Quantity   float64   `json:"quantity"`
-	Price      float64   `json:"price"`
-	Reason     string    `json:"reason"`
-	Confidence float64   `json:"confidence"`
-	Risk       float64   `json:"risk"`
+	Symbol       string  `json:"symbol"`
+	Date         string  `json:"date"`           // Changed to string to match usage
+	Timestamp    string  `json:"timestamp"`      // Added for signal processor
+	Action       string  `json:"action"`
+	Quantity     float64 `json:"quantity"`
+	Price        float64 `json:"price"`
+	Reason       string  `json:"reason"`
+	Reasoning    string  `json:"reasoning"`      // Added for signal processor
+	Confidence   float64 `json:"confidence"`
+	Risk         float64 `json:"risk"`
+	EntryPrice   float64 `json:"entry_price"`    // Added for signal processor
+	StopLoss     float64 `json:"stop_loss"`      // Added for signal processor
+	TakeProfit   float64 `json:"take_profit"`    // Added for signal processor
+	PositionSize float64 `json:"position_size"`  // Added for signal processor
 }
 
 type MarketData struct {
