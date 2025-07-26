@@ -28,6 +28,12 @@ cmd/
 ### 1. Agent编排流程
 
 ```
+分析师阶段: Market → Social → News → Fundamentals
+研究阶段: Bull Researcher ↔ Bear Researcher → Research Manager
+交易阶段: Trader → 风险分析 (Risky ↔ Safe ↔ Neutral) → Risk Judge
+```
+
+```
 START → Coordinator → Analyst → Researcher → Trader → RiskManager → Reporter → END
 ```
 
