@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/dyike/CortexGo/consts"
-	"github.com/dyike/CortexGo/internal/eino"
+	"github.com/dyike/CortexGo/internal/agents"
 )
 
 func main() {
-	err := eino.InitModel()
+	err := agents.InitModel()
 	if err != nil {
 		fmt.Printf("Failed to initialize model: %v\n", err)
 		return
@@ -39,11 +39,11 @@ func runConsole() {
 	userPrompt, _ := reader.ReadString('\n')
 	userPrompt = strings.TrimSpace(userPrompt)
 
-	genFunc := func(ctx context.Context) *eino.TradingState {
-		return eino.NewTradingState(symbol, time.Now(), userPrompt)
+	genFunc := func(ctx context.Context) *agents.TradingState {
+		return agents.NewTradingState(symbol, time.Now(), userPrompt)
 	}
 
-	orchestrator := eino.NewTradingOrchestrator[string, string, *eino.TradingState](ctx, genFunc)
+	orchestrator := agents.NewTradingOrchestrator[string, string, *agents.TradingState](ctx, genFunc)
 
 	fmt.Printf("\n开始处理 %s 的交易分析...\n\n", symbol)
 

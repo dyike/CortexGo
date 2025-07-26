@@ -1,4 +1,4 @@
-package eino
+package agents
 
 import (
 	"time"

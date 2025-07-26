@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/cloudwego/eino/compose"
+	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/config"
-	"github.com/dyike/CortexGo/internal/eino"
 	"github.com/dyike/CortexGo/internal/models"
 )
 
 type TradingAgentsGraph struct {
 	config      *config.Config
-	orchestrator compose.Runnable[*eino.TradingState, *eino.TradingState]
+	orchestrator compose.Runnable[*agents.TradingState, *agents.TradingState]
 	debug       bool
 }
 
@@ -23,10 +23,10 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 	}
 
 	ctx := context.Background()
-	orchestrator := eino.NewTradingOrchestrator[*eino.TradingState, *eino.TradingState, *eino.TradingState](
+	orchestrator := agents.NewTradingOrchestrator[*agents.TradingState, *agents.TradingState, *agents.TradingState](
 		ctx,
-		func(ctx context.Context) *eino.TradingState {
-			return &eino.TradingState{}
+		func(ctx context.Context) *agents.TradingState {
+			return &agents.TradingState{}
 		},
 	)
 
@@ -37,7 +37,7 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 	}
 }
 
-func (g *TradingAgentsGraph) Propagate(symbol string, date string) (*eino.TradingState, *models.TradingDecision, error) {
+func (g *TradingAgentsGraph) Propagate(symbol string, date string) (*agents.TradingState, *models.TradingDecision, error) {
 	ctx := context.Background()
 
 	parsedDate, err := time.Parse("2006-01-02", date)
@@ -46,7 +46,7 @@ func (g *TradingAgentsGraph) Propagate(symbol string, date string) (*eino.Tradin
 	}
 
 	userPrompt := fmt.Sprintf("Analyze trading opportunities for %s on %s", symbol, date)
-	state := eino.NewTradingState(symbol, parsedDate, userPrompt)
+	state := agents.NewTradingState(symbol, parsedDate, userPrompt)
 
 	// Set market data
 	state.MarketData = &models.MarketData{
