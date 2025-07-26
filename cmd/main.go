@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/dyike/CortexGo/consts"
-	"github.com/dyike/CortexGo/pkg/eino"
+	"github.com/dyike/CortexGo/internal/eino"
 )
 
 func main() {

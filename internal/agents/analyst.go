@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dyike/CortexGo/pkg/config"
-	"github.com/dyike/CortexGo/pkg/models"
+	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/internal/models"
 )
 
 type FundamentalAnalyst struct {

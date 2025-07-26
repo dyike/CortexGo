@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/eino/schema"
-	"github.com/dyike/CortexGo/pkg/models"
+	"github.com/dyike/CortexGo/internal/models"
 )
 
 type TradingState struct {

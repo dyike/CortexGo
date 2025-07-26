@@ -8,7 +8,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
-	"github.com/dyike/CortexGo/pkg/models"
+	"github.com/dyike/CortexGo/internal/models"
 )
 
 func traderRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
