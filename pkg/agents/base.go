@@ -2,6 +2,7 @@ package agents
 
 import (
 	"context"
+
 	"github.com/dyike/CortexGo/pkg/config"
 	"github.com/dyike/CortexGo/pkg/models"
 )

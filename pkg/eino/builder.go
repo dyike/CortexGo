@@ -21,13 +21,13 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	)
 
 	outMap := map[string]bool{
-		consts.Coordinator:  true,
-		consts.Analyst:      true,
-		consts.Researcher:   true,
-		consts.Trader:       true,
-		consts.RiskManager:  true,
-		consts.Reporter:     true,
-		compose.END:         true,
+		consts.Coordinator: true,
+		consts.Analyst:     true,
+		consts.Researcher:  true,
+		consts.Trader:      true,
+		consts.RiskManager: true,
+		consts.Reporter:    true,
+		compose.END:        true,
 	}
 
 	coordinatorGraph := NewCoordinatorNode[I, O](ctx)

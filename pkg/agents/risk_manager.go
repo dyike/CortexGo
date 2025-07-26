@@ -28,7 +28,7 @@ func (r *RiskManager) Process(ctx context.Context, state *models.AgentState) (*m
 	}
 
 	approved, adjustedDecision := r.assessRisk(state.Decision)
-	
+
 	if !approved {
 		adjustedDecision.Action = "HOLD"
 		adjustedDecision.Quantity = 0
@@ -36,7 +36,7 @@ func (r *RiskManager) Process(ctx context.Context, state *models.AgentState) (*m
 	}
 
 	state.Decision = adjustedDecision
-	
+
 	riskReport := models.AnalysisReport{
 		Analyst:    r.Name(),
 		Symbol:     state.CurrentSymbol,
@@ -45,14 +45,14 @@ func (r *RiskManager) Process(ctx context.Context, state *models.AgentState) (*m
 		Rating:     r.getRiskRating(state.Decision.Risk),
 		Confidence: 0.9,
 		Metrics: map[string]interface{}{
-			"approved":         approved,
-			"original_risk":    state.Decision.Risk,
-			"position_size":    state.Decision.Quantity,
-			"risk_threshold":   r.maxRiskThreshold,
-			"position_limit":   r.maxPositionSize,
+			"approved":       approved,
+			"original_risk":  state.Decision.Risk,
+			"position_size":  state.Decision.Quantity,
+			"risk_threshold": r.maxRiskThreshold,
+			"position_limit": r.maxPositionSize,
 		},
 	}
-	
+
 	state.Reports = append(state.Reports, riskReport)
 	return state, nil
 }
@@ -63,19 +63,19 @@ func (r *RiskManager) assessRisk(decision *models.TradingDecision) (bool, *model
 
 	if decision.Risk > r.maxRiskThreshold {
 		approved = false
-		adjustedDecision.Reason = fmt.Sprintf("High risk (%.2f > %.2f): %s", 
+		adjustedDecision.Reason = fmt.Sprintf("High risk (%.2f > %.2f): %s",
 			decision.Risk, r.maxRiskThreshold, decision.Reason)
 	}
 
 	if decision.Quantity > r.maxPositionSize {
 		adjustedDecision.Quantity = r.maxPositionSize
-		adjustedDecision.Reason = fmt.Sprintf("Position size limited to %.0f: %s", 
+		adjustedDecision.Reason = fmt.Sprintf("Position size limited to %.0f: %s",
 			r.maxPositionSize, decision.Reason)
 	}
 
 	if decision.Confidence < 0.3 {
 		approved = false
-		adjustedDecision.Reason = fmt.Sprintf("Low confidence (%.2f < 0.3): %s", 
+		adjustedDecision.Reason = fmt.Sprintf("Low confidence (%.2f < 0.3): %s",
 			decision.Confidence, decision.Reason)
 	}
 

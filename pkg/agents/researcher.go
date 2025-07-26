@@ -132,4 +132,3 @@ func (r *Researcher) calculateRatingVariance(ratings []string) float64 {
 
 	return float64(len(ratingCounts)) / float64(len(ratings))
 }
-

@@ -21,13 +21,13 @@ func traderRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "execute_trade" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
-			
+
 			action := fmt.Sprintf("%v", argMap["action"])
 			quantity := 0
 			if q, ok := argMap["quantity"].(float64); ok {
 				quantity = int(q)
 			}
-			
+
 			state.Decision = &models.TradingDecision{
 				Symbol:     state.CurrentSymbol,
 				Action:     action,
@@ -37,7 +37,7 @@ func traderRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 				Confidence: 0.8,
 				Reason:     fmt.Sprintf("%v", argMap["reasoning"]),
 			}
-			
+
 			if next, ok := argMap["next_agent"].(string); ok && next != "" {
 				switch next {
 				case "risk_manager":
@@ -72,9 +72,9 @@ Current context:
 - Current Price: ` + fmt.Sprintf("%.2f", state.MarketData.Price) + `
 
 Analysis reports:`
-		
+
 		for _, report := range state.Reports {
-			systemPrompt += fmt.Sprintf("\n- %s: %s (Recommendation: %s)", 
+			systemPrompt += fmt.Sprintf("\n- %s: %s (Recommendation: %s)",
 				report.Analyst, report.Analysis, report.Rating)
 		}
 
@@ -93,10 +93,10 @@ Provide clear reasoning for your decision.`
 		output = []*schema.Message{
 			schema.SystemMessage(systemPrompt),
 		}
-		
+
 		tradingPrompt := fmt.Sprintf("Based on all the analysis, make a trading decision for %s", state.CurrentSymbol)
 		output = append(output, schema.UserMessage(tradingPrompt))
-		
+
 		return nil
 	})
 	return output, err

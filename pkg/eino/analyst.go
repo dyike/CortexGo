@@ -21,18 +21,18 @@ func analystRouter(ctx context.Context, input *schema.Message, opts ...any) (out
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_analysis" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
-			
+
 			report := models.AnalysisReport{
-				Analyst:     "TechnicalAnalyst",
-				Symbol:      state.CurrentSymbol,
-				Date:        state.CurrentDate,
-				Analysis:    fmt.Sprintf("%v", argMap["analysis"]),
-				Confidence:  0.8,
-				Rating:      fmt.Sprintf("%v", argMap["recommendation"]),
+				Analyst:    "TechnicalAnalyst",
+				Symbol:     state.CurrentSymbol,
+				Date:       state.CurrentDate,
+				Analysis:   fmt.Sprintf("%v", argMap["analysis"]),
+				Confidence: 0.8,
+				Rating:     fmt.Sprintf("%v", argMap["recommendation"]),
 			}
-			
+
 			state.Reports = append(state.Reports, report)
-			
+
 			if next, ok := argMap["next_agent"].(string); ok && next != "" {
 				switch next {
 				case "researcher":
@@ -78,14 +78,14 @@ Focus on technical patterns, support/resistance levels, and momentum indicators.
 		output = []*schema.Message{
 			schema.SystemMessage(systemPrompt),
 		}
-		
+
 		if state.MarketData != nil {
-			marketContext := fmt.Sprintf("Current market data for %s: Price: %.2f, Volume: %d, High: %.2f, Low: %.2f", 
+			marketContext := fmt.Sprintf("Current market data for %s: Price: %.2f, Volume: %d, High: %.2f, Low: %.2f",
 				state.MarketData.Symbol, state.MarketData.Price, state.MarketData.Volume,
 				state.MarketData.High, state.MarketData.Low)
 			output = append(output, schema.UserMessage(marketContext))
 		}
-		
+
 		return nil
 	})
 	return output, err

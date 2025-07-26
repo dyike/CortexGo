@@ -23,18 +23,18 @@ func main() {
 		runServer()
 		return
 	}
-	
+
 	runConsole()
 }
 
 func runConsole() {
 	ctx := context.Background()
 	reader := bufio.NewReader(os.Stdin)
-	
+
 	fmt.Print("请输入交易符号 (例如: AAPL): ")
 	symbol, _ := reader.ReadString('\n')
 	symbol = strings.TrimSpace(symbol)
-	
+
 	fmt.Print("请输入您的交易需求: ")
 	userPrompt, _ := reader.ReadString('\n')
 	userPrompt = strings.TrimSpace(userPrompt)
@@ -46,7 +46,7 @@ func runConsole() {
 	orchestrator := eino.NewTradingOrchestrator[string, string, *eino.TradingState](ctx, genFunc)
 
 	fmt.Printf("\n开始处理 %s 的交易分析...\n\n", symbol)
-	
+
 	result, err := orchestrator.Invoke(ctx, consts.Coordinator)
 	if err != nil {
 		fmt.Printf("执行失败: %v\n", err)

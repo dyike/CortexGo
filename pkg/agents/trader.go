@@ -88,7 +88,7 @@ func (t *Trader) calculateQuantity(confidence float64, action string) float64 {
 	}
 
 	baseQuantity := 100.0
-	
+
 	if confidence > 0.8 {
 		return baseQuantity * 1.5
 	} else if confidence > 0.6 {
@@ -96,13 +96,13 @@ func (t *Trader) calculateQuantity(confidence float64, action string) float64 {
 	} else if confidence > 0.4 {
 		return baseQuantity * 0.5
 	}
-	
+
 	return baseQuantity * 0.25
 }
 
 func (t *Trader) calculateRisk(researchReport *models.AnalysisReport) float64 {
 	baseRisk := 0.5
-	
+
 	if researchReport.Confidence > 0.8 {
 		return baseRisk * 0.7
 	} else if researchReport.Confidence > 0.6 {
@@ -110,6 +110,6 @@ func (t *Trader) calculateRisk(researchReport *models.AnalysisReport) float64 {
 	} else if researchReport.Confidence > 0.4 {
 		return baseRisk * 1.3
 	}
-	
+
 	return baseRisk * 1.6
 }

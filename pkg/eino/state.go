@@ -8,18 +8,18 @@ import (
 )
 
 type TradingState struct {
-	Messages         []*schema.Message               `json:"messages"`
-	CurrentSymbol    string                          `json:"current_symbol"`
-	CurrentDate      time.Time                       `json:"current_date"`
-	MarketData       *models.MarketData              `json:"market_data"`
-	Reports          []models.AnalysisReport         `json:"reports"`
-	Discussions      []models.AnalystDiscussion      `json:"discussions"`
-	TeamConsensus    *models.Consensus               `json:"team_consensus"`
-	Decision         *models.TradingDecision         `json:"decision"`
-	Metadata         map[string]interface{}          `json:"metadata"`
-	Goto             string                          `json:"goto"`
-	MaxIterations    int                             `json:"max_iterations"`
-	CurrentIteration int                             `json:"current_iteration"`
+	Messages         []*schema.Message          `json:"messages"`
+	CurrentSymbol    string                     `json:"current_symbol"`
+	CurrentDate      time.Time                  `json:"current_date"`
+	MarketData       *models.MarketData         `json:"market_data"`
+	Reports          []models.AnalysisReport    `json:"reports"`
+	Discussions      []models.AnalystDiscussion `json:"discussions"`
+	TeamConsensus    *models.Consensus          `json:"team_consensus"`
+	Decision         *models.TradingDecision    `json:"decision"`
+	Metadata         map[string]interface{}     `json:"metadata"`
+	Goto             string                     `json:"goto"`
+	MaxIterations    int                        `json:"max_iterations"`
+	CurrentIteration int                        `json:"current_iteration"`
 }
 
 func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingState {
@@ -27,8 +27,8 @@ func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingS
 		Messages: []*schema.Message{
 			schema.UserMessage(userPrompt),
 		},
-		CurrentSymbol:    symbol,
-		CurrentDate:      date,
+		CurrentSymbol: symbol,
+		CurrentDate:   date,
 		MarketData: &models.MarketData{
 			Symbol:    symbol,
 			Timestamp: date,

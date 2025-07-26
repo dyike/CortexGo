@@ -19,13 +19,13 @@ func reporterRouter(ctx context.Context, input *schema.Message, opts ...any) (ou
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "generate_final_report" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
-			
+
 			if state.Metadata == nil {
 				state.Metadata = make(map[string]interface{})
 			}
 			state.Metadata["final_report"] = argMap["report"]
 			state.Metadata["executive_summary"] = argMap["executive_summary"]
-			
+
 			output = compose.END
 		}
 		return nil
@@ -48,9 +48,9 @@ Current context:
 - Date: ` + state.CurrentDate.Format("2006-01-02") + `
 
 Analysis Reports:`
-		
+
 		for _, report := range state.Reports {
-			systemPrompt += fmt.Sprintf("\n- %s: %s (Recommendation: %s, Confidence: %.1f)", 
+			systemPrompt += fmt.Sprintf("\n- %s: %s (Recommendation: %s, Confidence: %.1f)",
 				report.Analyst, report.Analysis, report.Rating, report.Confidence)
 		}
 
@@ -59,11 +59,11 @@ Analysis Reports:`
 
 Final Trading Decision:
 - Action: %s
-- Quantity: %d shares
+- Quantity: %.0f shares
 - Price: %.2f
 - Reasoning: %s
-- Confidence: %.1f`, 
-				state.Decision.Action, state.Decision.Quantity, 
+- Confidence: %.1f`,
+				state.Decision.Action, state.Decision.Quantity,
 				state.Decision.Price, state.Decision.Reason, state.Decision.Confidence)
 		}
 
@@ -83,10 +83,10 @@ Make the report professional and suitable for stakeholders.`
 		output = []*schema.Message{
 			schema.SystemMessage(systemPrompt),
 		}
-		
+
 		reportPrompt := fmt.Sprintf("Generate a comprehensive trading report for %s based on all the analysis and decisions made.", state.CurrentSymbol)
 		output = append(output, schema.UserMessage(reportPrompt))
-		
+
 		return nil
 	})
 	return output, err

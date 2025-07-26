@@ -13,7 +13,7 @@ func coordinatorRouter(ctx context.Context, input *schema.Message, opts ...any) 
 		defer func() {
 			output = state.Goto
 		}()
-		
+
 		state.Goto = compose.END
 		if len(input.ToolCalls) > 0 {
 			switch input.ToolCalls[0].Function.Name {

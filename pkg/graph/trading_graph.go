@@ -112,4 +112,3 @@ func (g *TradingAgentsGraph) ReflectAndRemember(positionReturns float64) error {
 
 	return nil
 }
-

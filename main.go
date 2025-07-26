@@ -10,18 +10,18 @@ import (
 
 func main() {
 	cfg := config.DefaultConfig()
-	
+
 	tradingGraph := graph.NewTradingAgentsGraph(true, cfg)
-	
+
 	state, decision, err := tradingGraph.Propagate("AAPL", "2024-01-15")
 	if err != nil {
 		log.Fatalf("Trading analysis failed: %v", err)
 	}
-	
+
 	fmt.Printf("\n=== ANALYST TEAM RESULTS ===\n")
 	fmt.Printf("Symbol: %s\n", state.CurrentSymbol)
 	fmt.Printf("Number of Reports: %d\n", len(state.Reports))
-	
+
 	for _, report := range state.Reports {
 		fmt.Printf("\n--- %s Analysis ---\n", report.Analyst)
 		fmt.Printf("Rating: %s (Confidence: %.2f)\n", report.Rating, report.Confidence)
@@ -34,7 +34,7 @@ func main() {
 			fmt.Printf("Concerns: %v\n", report.Concerns)
 		}
 	}
-	
+
 	if state.TeamConsensus != nil {
 		fmt.Printf("\n=== TEAM CONSENSUS ===\n")
 		fmt.Printf("Final Rating: %s\n", state.TeamConsensus.FinalRating)
@@ -47,7 +47,7 @@ func main() {
 			fmt.Printf("Dissents: %v\n", state.TeamConsensus.Dissents)
 		}
 	}
-	
+
 	if len(state.Discussions) > 0 {
 		fmt.Printf("\n=== TEAM DISCUSSIONS ===\n")
 		for _, discussion := range state.Discussions {
@@ -59,7 +59,7 @@ func main() {
 			}
 		}
 	}
-	
+
 	fmt.Printf("\n=== FINAL DECISION ===\n")
 	if decision != nil {
 		fmt.Printf("Action: %s\n", decision.Action)

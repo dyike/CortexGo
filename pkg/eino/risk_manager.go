@@ -21,18 +21,18 @@ func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) 
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "assess_risk" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
-			
+
 			riskAssessment := models.AnalysisReport{
-				Analyst:     "RiskManager",
-				Symbol:      state.CurrentSymbol,
-				Date:        state.CurrentDate,
-				Analysis:    fmt.Sprintf("%v", argMap["risk_analysis"]),
-				Confidence:  0.9,
-				Rating:      fmt.Sprintf("%v", argMap["risk_recommendation"]),
+				Analyst:    "RiskManager",
+				Symbol:     state.CurrentSymbol,
+				Date:       state.CurrentDate,
+				Analysis:   fmt.Sprintf("%v", argMap["risk_analysis"]),
+				Confidence: 0.9,
+				Rating:     fmt.Sprintf("%v", argMap["risk_recommendation"]),
 			}
-			
+
 			state.Reports = append(state.Reports, riskAssessment)
-			
+
 			if state.Decision != nil {
 				if approved, ok := argMap["approve_trade"].(bool); ok {
 					if !approved {
@@ -41,7 +41,7 @@ func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) 
 					}
 				}
 			}
-			
+
 			if next, ok := argMap["next_agent"].(string); ok && next != "" {
 				switch next {
 				case "trader":
@@ -75,16 +75,16 @@ Current context:
 
 		if state.Decision != nil {
 			systemPrompt += fmt.Sprintf(`
-- Proposed Trade: %s %d shares at %.2f
-- Reasoning: %s`, 
-				state.Decision.Action, state.Decision.Quantity, 
+- Proposed Trade: %s %.0f shares at %.2f
+- Reasoning: %s`,
+				state.Decision.Action, state.Decision.Quantity,
 				state.Decision.Price, state.Decision.Reason)
 		}
 
 		systemPrompt += `
 
 Analysis reports:`
-		
+
 		for _, report := range state.Reports {
 			systemPrompt += fmt.Sprintf("\n- %s: %s", report.Analyst, report.Analysis)
 		}
@@ -105,10 +105,10 @@ Approve or reject the proposed trade based on risk parameters.`
 		output = []*schema.Message{
 			schema.SystemMessage(systemPrompt),
 		}
-		
+
 		riskPrompt := "Please assess the risks associated with this trading decision and provide your risk management recommendations."
 		output = append(output, schema.UserMessage(riskPrompt))
-		
+
 		return nil
 	})
 	return output, err

@@ -21,18 +21,18 @@ func researcherRouter(ctx context.Context, input *schema.Message, opts ...any) (
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_research" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
-			
+
 			report := models.AnalysisReport{
-				Analyst:     "MarketResearcher",
-				Symbol:      state.CurrentSymbol,
-				Date:        state.CurrentDate,
-				Analysis:    fmt.Sprintf("%v", argMap["research_findings"]),
-				Confidence:  0.85,
-				Rating:      fmt.Sprintf("%v", argMap["market_outlook"]),
+				Analyst:    "MarketResearcher",
+				Symbol:     state.CurrentSymbol,
+				Date:       state.CurrentDate,
+				Analysis:   fmt.Sprintf("%v", argMap["research_findings"]),
+				Confidence: 0.85,
+				Rating:     fmt.Sprintf("%v", argMap["market_outlook"]),
 			}
-			
+
 			state.Reports = append(state.Reports, report)
-			
+
 			if next, ok := argMap["next_agent"].(string); ok && next != "" {
 				switch next {
 				case "trader":
@@ -68,7 +68,7 @@ Current context:
 - Date: ` + state.CurrentDate.Format("2006-01-02") + `
 
 Previous analysis reports:`
-		
+
 		for _, report := range state.Reports {
 			systemPrompt += fmt.Sprintf("\n- %s: %s", report.Analyst, report.Analysis)
 		}
@@ -86,10 +86,10 @@ Focus on company financials, industry trends, economic indicators, and market se
 		output = []*schema.Message{
 			schema.SystemMessage(systemPrompt),
 		}
-		
+
 		researchPrompt := fmt.Sprintf("Please conduct comprehensive research on %s for trading decision making.", state.CurrentSymbol)
 		output = append(output, schema.UserMessage(researchPrompt))
-		
+
 		return nil
 	})
 	return output, err
