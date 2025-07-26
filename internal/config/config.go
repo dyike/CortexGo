@@ -22,6 +22,13 @@ type Config struct {
 
 	OnlineTools bool `json:"online_tools"`
 	Debug       bool `json:"debug"`
+
+	// Dataflows configuration
+	FinnhubAPIKey   string `json:"finnhub_api_key"`
+	RedditClientID  string `json:"reddit_client_id"`
+	RedditSecret    string `json:"reddit_secret"`
+	RedditUserAgent string `json:"reddit_user_agent"`
+	CacheEnabled    bool   `json:"cache_enabled"`
 }
 
 func DefaultConfig() *Config {
@@ -44,6 +51,13 @@ func DefaultConfig() *Config {
 
 		OnlineTools: true,
 		Debug:       false,
+
+		// Dataflows defaults
+		FinnhubAPIKey:   "",
+		RedditClientID:  "",
+		RedditSecret:    "",
+		RedditUserAgent: "CortexGo/1.0",
+		CacheEnabled:    true,
 	}
 }
 
@@ -54,5 +68,22 @@ func (c *Config) EnsureDirectories() error {
 			return err
 		}
 	}
+
+	// Create dataflows subdirectories
+	dataflowsSubdirs := []string{
+		"market_data/price_data",
+		"finnhub_data",
+		"reddit_data",
+		"news_data",
+		"fundamental_data",
+	}
+	
+	for _, subdir := range dataflowsSubdirs {
+		fullPath := filepath.Join(c.DataDir, subdir)
+		if err := os.MkdirAll(fullPath, 0755); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
