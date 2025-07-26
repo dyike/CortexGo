@@ -12,9 +12,9 @@ import (
 )
 
 type TradingAgentsGraph struct {
-	config      *config.Config
+	config       *config.Config
 	orchestrator compose.Runnable[*agents.TradingState, *agents.TradingState]
-	debug       bool
+	debug        bool
 }
 
 func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
