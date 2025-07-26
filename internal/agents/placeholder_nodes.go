@@ -9,7 +9,7 @@ import (
 )
 
 // 简化的占位符节点，用于快速编译测试
-func simpleRouter(nextNode string) func(context.Context, *schema.Message, ...any) (string, error) {
+func SimpleRouter(nextNode string) func(context.Context, *schema.Message, ...any) (string, error) {
 	return func(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
 		err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
 			state.Goto = nextNode
@@ -19,7 +19,7 @@ func simpleRouter(nextNode string) func(context.Context, *schema.Message, ...any
 	}
 }
 
-func simpleLoader(prompt string) func(context.Context, string, ...any) ([]*schema.Message, error) {
+func SimpleLoader(prompt string) func(context.Context, string, ...any) ([]*schema.Message, error) {
 	return func(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 		output = []*schema.Message{
 			schema.SystemMessage(prompt),
@@ -31,9 +31,9 @@ func simpleLoader(prompt string) func(context.Context, string, ...any) ([]*schem
 
 func NewRiskyAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are a risky analyst.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are a risky analyst.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(consts.SafeAnalyst)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(consts.SafeAnalyst)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")
@@ -43,9 +43,9 @@ func NewRiskyAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 func NewSafeAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are a safe analyst.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are a safe analyst.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(consts.NeutralAnalyst)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(consts.NeutralAnalyst)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")
@@ -55,9 +55,9 @@ func NewSafeAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 func NewNeutralAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are a neutral analyst.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are a neutral analyst.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(consts.RiskJudge)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(consts.RiskJudge)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")
@@ -67,9 +67,9 @@ func NewNeutralAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 func NewRiskJudgeNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are the final risk judge.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are the final risk judge.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(compose.END)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(compose.END)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")

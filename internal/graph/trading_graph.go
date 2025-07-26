@@ -23,7 +23,7 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 	}
 
 	ctx := context.Background()
-	orchestrator := agents.NewTradingOrchestrator[*agents.TradingState, *agents.TradingState, *agents.TradingState](
+	orchestrator := NewTradingOrchestrator[*agents.TradingState, *agents.TradingState, *agents.TradingState](
 		ctx,
 		func(ctx context.Context) *agents.TradingState {
 			return &agents.TradingState{}

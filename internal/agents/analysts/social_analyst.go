@@ -1,6 +1,7 @@
-package agents
+package analysts
 
 import (
+	"github.com/dyike/CortexGo/internal/agents"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 )
 
 func socialAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
-	err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
 		defer func() {
 			output = state.Goto
 		}()
@@ -44,7 +45,7 @@ func socialAnalystRouter(ctx context.Context, input *schema.Message, opts ...any
 }
 
 func loadSocialAnalystMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
-	err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
 		systemPrompt := `You are a social media sentiment analyst specializing in financial market sentiment analysis.
 
 Your responsibilities:
@@ -83,7 +84,7 @@ func NewSocialMediaAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, 
 	g := compose.NewGraph[I, O]()
 
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadSocialAnalystMessages))
-	_ = g.AddChatModelNode("agent", ChatModel)
+	_ = g.AddChatModelNode("agent", agents.ChatModel)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(socialAnalystRouter))
 
 	_ = g.AddEdge(compose.START, "load")

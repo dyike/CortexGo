@@ -11,9 +11,9 @@ import (
 
 func NewTraderNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are a trader. Make trading decisions.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are a trader. Make trading decisions.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(consts.RiskyAnalyst)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(consts.RiskyAnalyst)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")
@@ -23,9 +23,9 @@ func NewTraderNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 func NewAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are an analyst.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are an analyst.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(consts.Researcher)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(consts.Researcher)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")
@@ -35,9 +35,9 @@ func NewAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 func NewResearcherNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are a researcher.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are a researcher.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(consts.Trader)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(consts.Trader)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")
@@ -47,9 +47,9 @@ func NewResearcherNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 func NewRiskManagerNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are a risk manager.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are a risk manager.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(consts.Reporter)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(consts.Reporter)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")
@@ -59,9 +59,9 @@ func NewRiskManagerNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 func NewReporterNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are a reporter.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are a reporter.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(compose.END)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(compose.END)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")
@@ -71,9 +71,9 @@ func NewReporterNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 func NewCoordinatorNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(simpleLoader("You are a coordinator.")))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(SimpleLoader("You are a coordinator.")))
 	_ = g.AddChatModelNode("agent", ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(simpleRouter(consts.MarketAnalyst)))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(SimpleRouter(consts.MarketAnalyst)))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")

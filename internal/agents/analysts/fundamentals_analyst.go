@@ -1,6 +1,7 @@
-package agents
+package analysts
 
 import (
+	"github.com/dyike/CortexGo/internal/agents"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 )
 
 func fundamentalsAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
-	err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
 		defer func() {
 			output = state.Goto
 		}()
@@ -40,7 +41,7 @@ func fundamentalsAnalystRouter(ctx context.Context, input *schema.Message, opts 
 }
 
 func loadFundamentalsAnalystMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
-	err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
 		systemPrompt := `You are a fundamental analyst specializing in company financial analysis and valuation.
 
 Your responsibilities:
@@ -81,7 +82,7 @@ func NewFundamentalsAnalystNode[I, O any](ctx context.Context) *compose.Graph[I,
 	g := compose.NewGraph[I, O]()
 
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadFundamentalsAnalystMessages))
-	_ = g.AddChatModelNode("agent", ChatModel)
+	_ = g.AddChatModelNode("agent", agents.ChatModel)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(fundamentalsAnalystRouter))
 
 	_ = g.AddEdge(compose.START, "load")

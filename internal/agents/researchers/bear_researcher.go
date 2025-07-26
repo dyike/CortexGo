@@ -1,6 +1,7 @@
-package agents
+package researchers
 
 import (
+	"github.com/dyike/CortexGo/internal/agents"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 )
 
 func bearResearcherRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
-	err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
 		defer func() {
 			output = state.Goto
 		}()
@@ -41,7 +42,7 @@ func bearResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 }
 
 func loadBearResearcherMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
-	err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
 		systemPrompt := `You are a bearish investment researcher specializing in identifying investment risks and negative catalysts.
 
 Your responsibilities:
@@ -97,7 +98,7 @@ func NewBearResearcherNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadBearResearcherMessages))
-	_ = g.AddChatModelNode("agent", ChatModel)
+	_ = g.AddChatModelNode("agent", agents.ChatModel)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(bearResearcherRouter))
 
 	_ = g.AddEdge(compose.START, "load")

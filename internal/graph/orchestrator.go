@@ -1,14 +1,20 @@
-package agents
+package graph
 
 import (
 	"context"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/dyike/CortexGo/consts"
+	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/agents/analysts"
+	"github.com/dyike/CortexGo/internal/agents/managers"
+	"github.com/dyike/CortexGo/internal/agents/researchers"
+	"github.com/dyike/CortexGo/internal/agents/risk_mgmt"
+	"github.com/dyike/CortexGo/internal/agents/trader"
 )
 
 func agentHandOff(ctx context.Context, input string) (next string, err error) {
-	_ = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+	_ = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
 		next = state.Goto
 		return nil
 	})
@@ -37,24 +43,24 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	}
 
 	// 创建分析师节点
-	marketAnalystGraph := NewMarketAnalystNode[I, O](ctx)
-	socialAnalystGraph := NewSocialMediaAnalystNode[I, O](ctx)
-	newsAnalystGraph := NewNewsAnalystNode[I, O](ctx)
-	fundamentalsAnalystGraph := NewFundamentalsAnalystNode[I, O](ctx)
+	marketAnalystGraph := analysts.NewMarketAnalystNode[I, O](ctx)
+	socialAnalystGraph := analysts.NewSocialMediaAnalystNode[I, O](ctx)
+	newsAnalystGraph := analysts.NewNewsAnalystNode[I, O](ctx)
+	fundamentalsAnalystGraph := analysts.NewFundamentalsAnalystNode[I, O](ctx)
 
 	// 创建研究员节点
-	bullResearcherGraph := NewBullResearcherNode[I, O](ctx)
-	bearResearcherGraph := NewBearResearcherNode[I, O](ctx)
-	researchManagerGraph := NewResearchManagerNode[I, O](ctx)
+	bullResearcherGraph := researchers.NewBullResearcherNode[I, O](ctx)
+	bearResearcherGraph := researchers.NewBearResearcherNode[I, O](ctx)
+	researchManagerGraph := managers.NewResearchManagerNode[I, O](ctx)
 
 	// 创建交易员节点
-	traderGraph := NewTraderNode[I, O](ctx)
+	traderGraph := trader.NewTraderNode[I, O](ctx)
 
 	// 创建风险分析节点
-	riskyAnalystGraph := NewRiskyAnalystNode[I, O](ctx)
-	safeAnalystGraph := NewSafeAnalystNode[I, O](ctx)
-	neutralAnalystGraph := NewNeutralAnalystNode[I, O](ctx)
-	riskJudgeGraph := NewRiskJudgeNode[I, O](ctx)
+	riskyAnalystGraph := risk_mgmt.NewRiskyAnalystNode[I, O](ctx)
+	safeAnalystGraph := risk_mgmt.NewSafeAnalystNode[I, O](ctx)
+	neutralAnalystGraph := risk_mgmt.NewNeutralAnalystNode[I, O](ctx)
+	riskJudgeGraph := risk_mgmt.NewRiskJudgeNode[I, O](ctx)
 
 	// 添加所有节点
 	_ = g.AddGraphNode(consts.MarketAnalyst, marketAnalystGraph, compose.WithNodeName(consts.MarketAnalyst))

@@ -1,6 +1,7 @@
-package agents
+package analysts
 
 import (
+	"github.com/dyike/CortexGo/internal/agents"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 )
 
 func newsAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
-	err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
 		defer func() {
 			output = state.Goto
 		}()
@@ -42,7 +43,7 @@ func newsAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) 
 }
 
 func loadNewsAnalystMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
-	err = compose.ProcessState[*TradingState](ctx, func(_ context.Context, state *TradingState) error {
+	err = compose.ProcessState[*agents.TradingState](ctx, func(_ context.Context, state *agents.TradingState) error {
 		systemPrompt := `You are a financial news analyst specializing in news impact analysis on stock movements.
 
 Your responsibilities:
@@ -82,7 +83,7 @@ func NewNewsAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadNewsAnalystMessages))
-	_ = g.AddChatModelNode("agent", ChatModel)
+	_ = g.AddChatModelNode("agent", agents.ChatModel)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(newsAnalystRouter))
 
 	_ = g.AddEdge(compose.START, "load")
