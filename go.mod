@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/cloudwego/eino v0.3.40
 	github.com/go-resty/resty/v2 v2.16.5
+	github.com/joho/godotenv v1.5.1
 	github.com/piquette/finance-go v1.1.0
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
 	github.com/spf13/cobra v1.9.1

@@ -3,6 +3,9 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -34,14 +37,14 @@ type Config struct {
 func DefaultConfig() *Config {
 	currentDir, _ := os.Getwd()
 
-	return &Config{
+	cfg := &Config{
 		ProjectDir:   currentDir,
 		ResultsDir:   filepath.Join(currentDir, "results"),
 		DataDir:      filepath.Join(currentDir, "data"),
 		DataCacheDir: filepath.Join(currentDir, "data", "cache"),
 
 		LLMProvider:   "openai",
-		DeepThinkLLM:  "o4-mini",
+		DeepThinkLLM:  "o1-mini",
 		QuickThinkLLM: "gpt-4o-mini",
 		BackendURL:    "https://api.openai.com/v1",
 
@@ -58,6 +61,87 @@ func DefaultConfig() *Config {
 		RedditSecret:    "",
 		RedditUserAgent: "CortexGo/1.0",
 		CacheEnabled:    true,
+	}
+
+	// Load environment variables from .env file
+	_ = godotenv.Load()
+
+	// Override with environment variables if they exist
+	cfg.loadFromEnv()
+
+	return cfg
+}
+
+func (c *Config) loadFromEnv() {
+	if val := os.Getenv("PROJECT_DIR"); val != "" {
+		c.ProjectDir = val
+	}
+	if val := os.Getenv("RESULTS_DIR"); val != "" {
+		c.ResultsDir = val
+	}
+	if val := os.Getenv("DATA_DIR"); val != "" {
+		c.DataDir = val
+	}
+	if val := os.Getenv("DATA_CACHE_DIR"); val != "" {
+		c.DataCacheDir = val
+	}
+
+	if val := os.Getenv("LLM_PROVIDER"); val != "" {
+		c.LLMProvider = val
+	}
+	if val := os.Getenv("DEEP_THINK_LLM"); val != "" {
+		c.DeepThinkLLM = val
+	}
+	if val := os.Getenv("QUICK_THINK_LLM"); val != "" {
+		c.QuickThinkLLM = val
+	}
+	if val := os.Getenv("BACKEND_URL"); val != "" {
+		c.BackendURL = val
+	}
+
+	if val := os.Getenv("MAX_DEBATE_ROUNDS"); val != "" {
+		if rounds, err := strconv.Atoi(val); err == nil {
+			c.MaxDebateRounds = rounds
+		}
+	}
+	if val := os.Getenv("MAX_RISK_DISCUSS_ROUNDS"); val != "" {
+		if rounds, err := strconv.Atoi(val); err == nil {
+			c.MaxRiskDiscussRounds = rounds
+		}
+	}
+	if val := os.Getenv("MAX_RECUR_LIMIT"); val != "" {
+		if limit, err := strconv.Atoi(val); err == nil {
+			c.MaxRecurLimit = limit
+		}
+	}
+
+	if val := os.Getenv("ONLINE_TOOLS"); val != "" {
+		if online, err := strconv.ParseBool(val); err == nil {
+			c.OnlineTools = online
+		}
+	}
+	if val := os.Getenv("DEBUG"); val != "" {
+		if debug, err := strconv.ParseBool(val); err == nil {
+			c.Debug = debug
+		}
+	}
+
+	if val := os.Getenv("FINNHUB_API_KEY"); val != "" {
+		c.FinnhubAPIKey = val
+	}
+	if val := os.Getenv("REDDIT_CLIENT_ID"); val != "" {
+		c.RedditClientID = val
+	}
+	if val := os.Getenv("REDDIT_SECRET"); val != "" {
+		c.RedditSecret = val
+	}
+	if val := os.Getenv("REDDIT_USER_AGENT"); val != "" {
+		c.RedditUserAgent = val
+	}
+	if val := os.Getenv("CACHE_ENABLED"); val != "" {
+		if cache, err := strconv.ParseBool(val); err == nil {
+			c.CacheEnabled = cache
+		}
 	}
 }
 
