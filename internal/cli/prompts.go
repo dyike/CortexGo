@@ -107,7 +107,11 @@ func PromptForAnalysts() ([]AnalystType, error) {
 	}
 	
 	err := survey.AskOne(prompt, &selectedAnalysts, survey.WithValidator(func(val interface{}) error {
-		selected := val.([]string)
+		// For MultiSelect, we need to check the length of the selection
+		selected, ok := val.([]survey.OptionAnswer)
+		if !ok {
+			return fmt.Errorf("invalid selection type")
+		}
 		if len(selected) == 0 {
 			return fmt.Errorf("you must select at least one analyst")
 		}
