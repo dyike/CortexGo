@@ -3,10 +3,13 @@ package graph
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/cloudwego/eino/compose"
+	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/config"
+	einodebug "github.com/dyike/CortexGo/internal/debug"
 	"github.com/dyike/CortexGo/internal/models"
 )
 
@@ -14,11 +17,17 @@ type TradingAgentsGraph struct {
 	config       *config.Config
 	orchestrator compose.Runnable[*models.TradingState, *models.TradingState]
 	debug        bool
+	debugger     *einodebug.EinoDebugger
 }
 
 func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 	if cfg == nil {
 		cfg = config.DefaultConfig()
+	}
+
+	// Initialize agents infrastructure (required before creating orchestrator)
+	if err := agents.InitModel(); err != nil {
+		log.Printf("[TradingGraph] Failed to initialize agents model: %v", err)
 	}
 
 	ctx := context.Background()
@@ -33,6 +42,7 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 		config:       cfg,
 		orchestrator: orchestrator,
 		debug:        debug,
+		debugger:     nil, // Will be initialized only when debug command is called
 	}
 }
 
@@ -82,4 +92,23 @@ func (g *TradingAgentsGraph) ReflectAndRemember(positionReturns float64) error {
 	}
 
 	return nil
+}
+
+func (g *TradingAgentsGraph) StartDebugServer() error {
+	if g.debugger != nil {
+		return fmt.Errorf("debug server is already running")
+	}
+
+	// Initialize debugger
+	g.debugger = einodebug.NewEinoDebugger(g.config)
+	if err := g.debugger.Initialize(); err != nil {
+		return fmt.Errorf("failed to initialize debug server: %w", err)
+	}
+
+	log.Printf("[TradingGraph] Eino debug interface available at: %s", g.debugger.GetDebugURL())
+	return nil
+}
+
+func (g *TradingAgentsGraph) IsDebugRunning() bool {
+	return g.debugger != nil && g.debugger.IsEnabled()
 }

@@ -7,20 +7,25 @@ import (
 
 	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/dataflows"
+	"github.com/dyike/CortexGo/internal/graph"
 )
 
 // Analyzer manages the trading analysis process
 type Analyzer struct {
 	config         *config.Config
 	sessionManager *SessionManager
-	orchestrator   interface{} // Placeholder for actual orchestrator
+	tradingGraph   *graph.TradingAgentsGraph
 }
 
 // NewAnalyzer creates a new analyzer instance
 func NewAnalyzer(cfg *config.Config) *Analyzer {
+	// Initialize trading graph with debug mode from config
+	tradingGraph := graph.NewTradingAgentsGraph(cfg.Debug, cfg)
+	
 	return &Analyzer{
 		config:         cfg,
 		sessionManager: NewSessionManager(cfg),
+		tradingGraph:   tradingGraph,
 	}
 }
 
@@ -40,9 +45,7 @@ func (a *Analyzer) RunAnalysis(ctx context.Context, selections UserSelections) (
 	// Update configuration based on selections
 	a.updateConfigFromSelections(selections)
 	
-	// Initialize orchestrator (placeholder for actual implementation)
-	// In the real implementation, this would initialize the trading graph
-	a.orchestrator = nil
+	// Trading graph is already initialized in NewAnalyzer
 	
 	// Run analysis phases
 	if err := a.runAnalysisPhases(ctx, session); err != nil {

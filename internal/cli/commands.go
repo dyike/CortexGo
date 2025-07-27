@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/internal/debug"
 )
 
 // NewRootCmd creates the root command
@@ -33,6 +34,7 @@ It provides comprehensive market analysis, research, and risk assessment for inf
 	rootCmd.AddCommand(newAnalyzeCmd(cfg))
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newConfigCmd(cfg))
+	rootCmd.AddCommand(newDebugCmd(cfg))
 
 	// Global flags
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
@@ -241,6 +243,11 @@ func showConfig(cfg *config.Config) {
 	fmt.Printf("Online Tools:         %t\n", cfg.OnlineTools)
 	fmt.Printf("Cache Enabled:        %t\n", cfg.CacheEnabled)
 	fmt.Printf("Debug Mode:           %t\n", cfg.Debug)
+	fmt.Printf("Eino Debug:           %t\n", cfg.EinoDebugEnabled)
+	if cfg.EinoDebugEnabled {
+		fmt.Printf("Eino Debug Port:      %d\n", cfg.EinoDebugPort)
+		fmt.Printf("Debug URL:            http://localhost:%d\n", cfg.EinoDebugPort)
+	}
 	fmt.Println()
 	
 	// Dataflows configuration
@@ -329,4 +336,48 @@ func validateConfig(cfg *config.Config) error {
 	fmt.Println("  • Use 'cortexgo analyze' to start your first analysis")
 
 	return nil
+}
+
+func newDebugCmd(cfg *config.Config) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "debug",
+		Short: "Start Eino visual debug server",
+		Long: `Start the Eino visual debug server for debugging Graph and Chain orchestration.
+The debug server provides a web interface to visualize node execution, inputs, outputs, and timing.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runDebugCommand(cfg)
+		},
+	}
+
+	cmd.Flags().IntP("port", "p", 52538, "Debug server port")
+	
+	return cmd
+}
+
+func runDebugCommand(cfg *config.Config) error {
+	fmt.Println("🚀 Starting CortexGo Eino Debug Server...")
+	fmt.Println("═══════════════════════════════════════")
+	
+	// Override config with debug enabled
+	cfg.EinoDebugEnabled = true
+	cfg.Debug = true
+	
+	// Use simple debug server to avoid graph type issues
+	debugServer := debug.NewSimpleDebugServer(cfg)
+	
+	// Start debug server
+	if err := debugServer.Start(); err != nil {
+		return fmt.Errorf("failed to start debug server: %w", err)
+	}
+	
+	fmt.Printf("🔍 Debug server started at: %s\n", debugServer.GetDebugURL())
+	fmt.Printf("🏥 Health check at: http://localhost:%d/health\n", cfg.EinoDebugPort+1)
+	fmt.Println("📊 You can now debug Eino orchestration artifacts through the web interface")
+	fmt.Println("💡 Open your browser and navigate to the URL above")
+	fmt.Println("⚠️  Note: Graph compilation issues are bypassed for debug server startup")
+	fmt.Println()
+	fmt.Println("Press Ctrl+C to stop the debug server...")
+	
+	// Keep the server running
+	select {}
 }

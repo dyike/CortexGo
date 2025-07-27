@@ -26,6 +26,10 @@ type Config struct {
 	OnlineTools bool `json:"online_tools"`
 	Debug       bool `json:"debug"`
 
+	// Eino Debug configuration
+	EinoDebugEnabled bool `json:"eino_debug_enabled"`
+	EinoDebugPort    int  `json:"eino_debug_port"`
+
 	// Dataflows configuration
 	FinnhubAPIKey   string `json:"finnhub_api_key"`
 	RedditClientID  string `json:"reddit_client_id"`
@@ -54,6 +58,10 @@ func DefaultConfig() *Config {
 
 		OnlineTools: true,
 		Debug:       false,
+
+		// Eino Debug defaults
+		EinoDebugEnabled: false,
+		EinoDebugPort:    52538,
 
 		// Dataflows defaults
 		FinnhubAPIKey:   "",
@@ -141,6 +149,17 @@ func (c *Config) loadFromEnv() {
 	if val := os.Getenv("CACHE_ENABLED"); val != "" {
 		if cache, err := strconv.ParseBool(val); err == nil {
 			c.CacheEnabled = cache
+		}
+	}
+
+	if val := os.Getenv("EINO_DEBUG_ENABLED"); val != "" {
+		if enabled, err := strconv.ParseBool(val); err == nil {
+			c.EinoDebugEnabled = enabled
+		}
+	}
+	if val := os.Getenv("EINO_DEBUG_PORT"); val != "" {
+		if port, err := strconv.Atoi(val); err == nil {
+			c.EinoDebugPort = port
 		}
 	}
 }

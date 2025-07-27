@@ -10,9 +10,10 @@ import (
 	"github.com/dyike/CortexGo/internal/agents/researchers"
 	"github.com/dyike/CortexGo/internal/agents/risk_mgmt"
 	"github.com/dyike/CortexGo/internal/agents/trader"
+	"github.com/dyike/CortexGo/internal/models"
 )
 
-func agentHandOff(ctx context.Context, input string) (next string, err error) {
+func agentHandOff(ctx context.Context, input *models.TradingState) (next string, err error) {
 	return ConditionalAgentHandOff(ctx, input)
 }
 

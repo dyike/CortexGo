@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 
-	"github.com/cloudwego/eino/compose"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/models"
 )
@@ -141,20 +140,14 @@ func (cl *ConditionalLogic) MarkAnalystComplete(ctx context.Context, analyst str
 }
 
 // ConditionalAgentHandOff provides smart routing based on workflow state
-func ConditionalAgentHandOff(ctx context.Context, input string) (next string, err error) {
+func ConditionalAgentHandOff(ctx context.Context, input *models.TradingState) (next string, err error) {
 	cl := NewConditionalLogic()
 	
-	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		// If Goto is set by agent logic, respect it
-		if state.Goto != "" {
-			next = state.Goto
-			return nil
-		}
-		
-		// Otherwise, use conditional logic to determine next step
-		next = cl.DetermineNextPhase(ctx, state)
-		return nil
-	})
+	// If Goto is set by agent logic, respect it
+	if input.Goto != "" {
+		return input.Goto, nil
+	}
 	
-	return next, err
+	// Otherwise, use conditional logic to determine next step
+	return cl.DetermineNextPhase(ctx, input), nil
 }
