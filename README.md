@@ -20,7 +20,7 @@ consts/
 └── nodes.go          # agent节点常量定义
 
 cmd/
-└── eino_main.go      # 主程序入口
+└── main.go      # 主程序入口
 ```
 
 ## 架构设计
