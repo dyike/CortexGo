@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/internal/utils"
 )
 
 func marketAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
@@ -21,7 +23,7 @@ func marketAnalystRouter(ctx context.Context, input *schema.Message, opts ...any
 		// Mark market analyst as complete and set sequential flow
 		state.MarketAnalystComplete = true
 		state.Goto = consts.SocialMediaAnalyst
-		
+
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_market_analysis" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
@@ -37,25 +39,18 @@ func marketAnalystRouter(ctx context.Context, input *schema.Message, opts ...any
 
 func loadMarketAnalystMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		systemPrompt := `You are a senior market analyst specializing in technical analysis and market data interpretation.
-
-Your responsibilities:
-1. Analyze market data, price trends, and volume patterns
-2. Provide technical analysis insights using indicators like RSI, MACD, moving averages
-3. Evaluate market sentiment and trading signals  
-4. Determine next analysis step in the workflow
-
-Current context:
-- Company: ` + state.CompanyOfInterest + `
-- Trade Date: ` + state.TradeDate + `
-- Market Data: Price movements, volume analysis, technical indicators
-
-When you complete your analysis, use the submit_market_analysis tool to provide:
-- Comprehensive market analysis including technical indicators
-- Trading signals and market sentiment assessment
-- Next analysis step (social/fundamentals/news/bull_researcher)
-
-Focus on price action, support/resistance levels, momentum indicators, and volume analysis.`
+		// Load prompt from external markdown file with context
+		context := map[string]string{
+			"CompanyOfInterest": state.CompanyOfInterest,
+			"TradeDate":         state.TradeDate,
+		}
+		
+		systemPrompt, err := utils.LoadPromptWithContext("analysts/market_analyst", context)
+		if err != nil {
+			log.Printf("Failed to load market analyst prompt: %v", err)
+			// Fallback to basic prompt if file loading fails
+			systemPrompt = "You are a market analyst. Analyze the given market data and provide insights."
+		}
 
 		output = []*schema.Message{
 			schema.SystemMessage(systemPrompt),
