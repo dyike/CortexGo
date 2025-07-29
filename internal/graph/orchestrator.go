@@ -2,12 +2,15 @@ package graph
 
 import (
 	"context"
+	"log"
 
+	"github.com/cloudwego/eino-ext/components/model/deepseek"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents/analysts"
+	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 )
 
@@ -84,7 +87,20 @@ func createTypedAgentNode[I, O any](ctx context.Context, role string, chatModel 
 	return g
 }
 
-func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.GenLocalState[S], chatModel model.ChatModel) compose.Runnable[I, O] {
+func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.GenLocalState[S], cfg *config.Config) compose.Runnable[I, O] {
+	// 创建 deepseek 模型
+	apiKey := cfg.DeepSeekAPIKey
+	chatModel, err := deepseek.NewChatModel(ctx, &deepseek.ChatModelConfig{
+		APIKey:    apiKey,
+		Model:     "deepseek-reasoner",
+		MaxTokens: 2000,
+	})
+	if err != nil {
+		log.Printf("[TradingGraph] Failed to create DeepSeek model: %v", err)
+		// TODO
+		// Fallback to agents model if DeepSeek fails
+	}
+
 	g := compose.NewGraph[I, O](
 		compose.WithGenLocalState(genFunc),
 	)

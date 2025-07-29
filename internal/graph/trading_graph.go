@@ -6,9 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/cloudwego/eino-ext/components/model/deepseek"
 	"github.com/cloudwego/eino/compose"
-	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 )
@@ -25,44 +23,14 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 		cfg = config.DefaultConfig()
 	}
 
-	// 创建 deepseek 模型
 	ctx := context.Background()
-	apiKey := cfg.DeepSeekAPIKey
-	cm, err := deepseek.NewChatModel(ctx, &deepseek.ChatModelConfig{
-		APIKey:    apiKey,
-		Model:     "deepseek-reasoner",
-		MaxTokens: 2000,
-	})
-	if err != nil {
-		log.Printf("[TradingGraph] Failed to create DeepSeek model: %v", err)
-		// Fallback to agents model if DeepSeek fails
-		if err := agents.InitModel(); err != nil {
-			log.Fatal("Failed to initialize fallback model")
-		}
-		// Use the agents.ChatModel directly instead of trying to convert
-		orchestrator := NewTradingOrchestrator[*models.TradingState, *models.TradingState, *models.TradingState](
-			ctx,
-			func(ctx context.Context) *models.TradingState {
-				return &models.TradingState{}
-			},
-			agents.ChatModel,
-		)
-		
-		return &TradingAgentsGraph{
-			config:       cfg,
-			orchestrator: orchestrator,
-			debug:        debug,
-		}
-	}
-
 	// No need to initialize agents infrastructure when using DeepSeek successfully
-
 	orchestrator := NewTradingOrchestrator[*models.TradingState, *models.TradingState, *models.TradingState](
 		ctx,
 		func(ctx context.Context) *models.TradingState {
 			return &models.TradingState{}
 		},
-		cm,
+		cfg,
 	)
 
 	return &TradingAgentsGraph{
