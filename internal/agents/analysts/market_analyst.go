@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
-	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
 )
@@ -44,7 +44,6 @@ func loadMarketAnalystMessages(ctx context.Context, name string, opts ...any) (o
 			"CompanyOfInterest": state.CompanyOfInterest,
 			"TradeDate":         state.TradeDate,
 		}
-		
 		systemPrompt, err := utils.LoadPromptWithContext("analysts/market_analyst", context)
 		if err != nil {
 			log.Printf("Failed to load market analyst prompt: %v", err)
@@ -68,12 +67,32 @@ func loadMarketAnalystMessages(ctx context.Context, name string, opts ...any) (o
 	return output, err
 }
 
-func NewMarketAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
+func NewMarketAnalystNode[I, O any](ctx context.Context, chatModel model.ChatModel) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadMarketAnalystMessages))
-	_ = g.AddChatModelNode("agent", agents.ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(marketAnalystRouter))
+	// Create a typed loader that accepts the correct input type but ignores it
+	typedLoader := func(ctx context.Context, input I, opts ...any) ([]*schema.Message, error) {
+		return loadMarketAnalystMessages(ctx, "", opts...)
+	}
+
+	// Create a typed router that accepts the correct message type
+	typedRouter := func(ctx context.Context, input *schema.Message, opts ...any) (O, error) {
+		nextNode, err := marketAnalystRouter(ctx, input, opts...)
+		if err != nil {
+			var zero O
+			return zero, err
+		}
+		// Convert string to O type
+		if result, ok := any(nextNode).(O); ok {
+			return result, nil
+		}
+		var zero O
+		return zero, nil
+	}
+
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(typedLoader))
+	_ = g.AddChatModelNode("agent", chatModel)
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(typedRouter))
 
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")

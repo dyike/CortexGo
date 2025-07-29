@@ -36,6 +36,9 @@ type Config struct {
 	RedditSecret    string `json:"reddit_secret"`
 	RedditUserAgent string `json:"reddit_user_agent"`
 	CacheEnabled    bool   `json:"cache_enabled"`
+	
+	// AI Model API Keys
+	DeepSeekAPIKey string `json:"deepseek_api_key"`
 }
 
 func DefaultConfig() *Config {
@@ -161,6 +164,10 @@ func (c *Config) loadFromEnv() {
 		if port, err := strconv.Atoi(val); err == nil {
 			c.EinoDebugPort = port
 		}
+	}
+	
+	if val := os.Getenv("DEEPSEEK_API_KEY"); val != "" {
+		c.DeepSeekAPIKey = val
 	}
 }
 

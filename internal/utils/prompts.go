@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-//go:embed ../../prompts/**/*.md
+//go:embed prompts
 var promptFiles embed.FS
 
 // LoadPrompt loads a prompt from the embedded markdown files

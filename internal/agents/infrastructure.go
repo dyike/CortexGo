@@ -2,45 +2,34 @@ package agents
 
 import (
 	"context"
+	"log"
+	"os"
 
+	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
-	"github.com/cloudwego/eino/schema"
 )
 
-type MockChatModel struct{}
+// ChatModel is the shared chat model instance for all agents
+var ChatModel model.ChatModel
 
-func (m *MockChatModel) Generate(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.Message, error) {
-	return schema.AssistantMessage("Mock response from trading agent", []schema.ToolCall{
-		{
-			ID:   "mock_call",
-			Type: "function",
-			Function: schema.FunctionCall{
-				Name:      "execute_trade",
-				Arguments: `{"action": "buy", "quantity": 100, "reasoning": "Mock trading decision"}`,
-			},
-		},
-	}), nil
-}
-
-func (m *MockChatModel) Stream(ctx context.Context, messages []*schema.Message, opts ...model.Option) (*schema.StreamReader[*schema.Message], error) {
-	return nil, nil
-}
-
-var ChatModel model.BaseChatModel
-
+// InitModel initializes the chat model for agents
 func InitModel() error {
-	ChatModel = &MockChatModel{}
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		log.Printf("OPENAI_API_KEY not set, using default configuration")
+		apiKey = "dummy-key" // Fallback for testing
+	}
+
+	ctx := context.Background()
+	cm, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
+		APIKey: apiKey,
+		Model:  "gpt-3.5-turbo",
+	})
+	if err != nil {
+		return err
+	}
+
+	ChatModel = cm
 	return nil
 }
 
-func CreateSystemMessage(content string) *schema.Message {
-	return schema.SystemMessage(content)
-}
-
-func CreateUserMessage(content string) *schema.Message {
-	return schema.UserMessage(content)
-}
-
-func CreateAssistantMessage(content string) *schema.Message {
-	return schema.AssistantMessage(content, nil)
-}

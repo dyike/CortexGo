@@ -3,22 +3,23 @@ package graph
 import (
 	"context"
 
+	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
-	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/agents/analysts"
 	"github.com/dyike/CortexGo/internal/models"
 )
 
 // debateHandOff handles the bull/bear researcher debate cycle
 func debateHandOff(ctx context.Context, input *models.TradingState) (next string, err error) {
 	cl := NewConditionalLogic()
-	
+
 	// Check if debate should continue
 	if !cl.ShouldContinueDebate(input) {
 		return consts.ResearchManager, nil
 	}
-	
+
 	// Alternate between Bull and Bear researchers
 	if input.InvestmentDebateState.Count%2 == 0 {
 		return consts.BullResearcher, nil
@@ -29,12 +30,12 @@ func debateHandOff(ctx context.Context, input *models.TradingState) (next string
 // riskHandOff handles the three-way risk analysis cycle
 func riskHandOff(ctx context.Context, input *models.TradingState) (next string, err error) {
 	cl := NewConditionalLogic()
-	
+
 	// Check if risk discussion should continue
 	if !cl.ShouldContinueRiskDiscussion(input) {
 		return consts.RiskJudge, nil
 	}
-	
+
 	// Rotate between Risky, Safe, and Neutral analysts
 	switch input.RiskDebateState.LatestSpeaker {
 	case consts.RiskyAnalyst:
@@ -48,17 +49,17 @@ func riskHandOff(ctx context.Context, input *models.TradingState) (next string, 
 	}
 }
 
-func createTypedAgentNode[I, O any](ctx context.Context, role string) *compose.Graph[I, O] {
+func createTypedAgentNode[I, O any](ctx context.Context, role string, chatModel model.ChatModel) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	
+
 	// Create a loader that accepts the correct input type but ignores it
 	typedLoader := func(ctx context.Context, input I, opts ...any) ([]*schema.Message, error) {
-		return agents.SimpleLoader("You are a " + role + ".")(ctx, "", opts...)
+		return SimpleLoader("You are a "+role+".")(ctx, "", opts...)
 	}
-	
-	// Create a router that accepts the correct message type 
+
+	// Create a router that accepts the correct message type
 	typedRouter := func(ctx context.Context, input *schema.Message, opts ...any) (O, error) {
-		nextNode, err := agents.SimpleRouter(consts.SocialMediaAnalyst)(ctx, input, opts...)
+		nextNode, err := SimpleRouter(consts.SocialMediaAnalyst)(ctx, input, opts...)
 		if err != nil {
 			var zero O
 			return zero, err
@@ -70,20 +71,20 @@ func createTypedAgentNode[I, O any](ctx context.Context, role string) *compose.G
 		var zero O
 		return zero, nil
 	}
-	
+
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(typedLoader))
-	_ = g.AddChatModelNode("agent", agents.ChatModel)
+	_ = g.AddChatModelNode("agent", chatModel)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(typedRouter))
-	
+
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
 	_ = g.AddEdge("agent", "router")
 	_ = g.AddEdge("router", compose.END)
-	
+
 	return g
 }
 
-func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.GenLocalState[S]) compose.Runnable[I, O] {
+func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.GenLocalState[S], chatModel model.ChatModel) compose.Runnable[I, O] {
 	g := compose.NewGraph[I, O](
 		compose.WithGenLocalState(genFunc),
 	)
@@ -102,25 +103,25 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 		consts.RiskJudge:      true,
 	}
 
-	// 创建分析师节点 - use simple nodes with proper type adapters
-	marketAnalystGraph := createTypedAgentNode[I, O](ctx, "market analyst")
-	socialAnalystGraph := createTypedAgentNode[I, O](ctx, "social media analyst")
-	newsAnalystGraph := createTypedAgentNode[I, O](ctx, "news analyst")
-	fundamentalsAnalystGraph := createTypedAgentNode[I, O](ctx, "fundamentals analyst")
+	// 创建分析师节点 - use specialized nodes for better functionality
+	marketAnalystGraph := analysts.NewMarketAnalystNode[I, O](ctx, chatModel)
+	socialAnalystGraph := createTypedAgentNode[I, O](ctx, "social media analyst", chatModel)
+	newsAnalystGraph := createTypedAgentNode[I, O](ctx, "news analyst", chatModel)
+	fundamentalsAnalystGraph := createTypedAgentNode[I, O](ctx, "fundamentals analyst", chatModel)
 
 	// 创建研究员节点 - use simple nodes with proper type adapters
-	bullResearcherGraph := createTypedAgentNode[I, O](ctx, "bull researcher")
-	bearResearcherGraph := createTypedAgentNode[I, O](ctx, "bear researcher")
-	researchManagerGraph := createTypedAgentNode[I, O](ctx, "research manager")
+	bullResearcherGraph := createTypedAgentNode[I, O](ctx, "bull researcher", chatModel)
+	bearResearcherGraph := createTypedAgentNode[I, O](ctx, "bear researcher", chatModel)
+	researchManagerGraph := createTypedAgentNode[I, O](ctx, "research manager", chatModel)
 
 	// 创建交易员节点 - use simple nodes with proper type adapters
-	traderGraph := createTypedAgentNode[I, O](ctx, "trader")
+	traderGraph := createTypedAgentNode[I, O](ctx, "trader", chatModel)
 
 	// 创建风险分析节点 - use simple nodes with proper type adapters
-	riskyAnalystGraph := createTypedAgentNode[I, O](ctx, "risky analyst")
-	safeAnalystGraph := createTypedAgentNode[I, O](ctx, "safe analyst")
-	neutralAnalystGraph := createTypedAgentNode[I, O](ctx, "neutral analyst")
-	riskJudgeGraph := createTypedAgentNode[I, O](ctx, "risk judge")
+	riskyAnalystGraph := createTypedAgentNode[I, O](ctx, "risky analyst", chatModel)
+	safeAnalystGraph := createTypedAgentNode[I, O](ctx, "safe analyst", chatModel)
+	neutralAnalystGraph := createTypedAgentNode[I, O](ctx, "neutral analyst", chatModel)
+	riskJudgeGraph := createTypedAgentNode[I, O](ctx, "risk judge", chatModel)
 
 	// 添加所有节点
 	_ = g.AddGraphNode(consts.MarketAnalyst, marketAnalystGraph, compose.WithNodeName(consts.MarketAnalyst))
@@ -142,20 +143,20 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	_ = g.AddEdge(consts.SocialMediaAnalyst, consts.NewsAnalyst)
 	_ = g.AddEdge(consts.NewsAnalyst, consts.FundamentalsAnalyst)
 	_ = g.AddEdge(consts.FundamentalsAnalyst, consts.BullResearcher)
-	
+
 	// Conditional branches for debate phase (bull/bear cycle)
 	_ = g.AddBranch(consts.BullResearcher, compose.NewGraphBranch(debateHandOff, debateOutMap))
 	_ = g.AddBranch(consts.BearResearcher, compose.NewGraphBranch(debateHandOff, debateOutMap))
-	
+
 	// Sequential edge to trading phase
 	_ = g.AddEdge(consts.ResearchManager, consts.Trader)
 	_ = g.AddEdge(consts.Trader, consts.RiskyAnalyst)
-	
+
 	// Conditional branches for risk phase (three-way cycle)
 	_ = g.AddBranch(consts.RiskyAnalyst, compose.NewGraphBranch(riskHandOff, riskOutMap))
 	_ = g.AddBranch(consts.SafeAnalyst, compose.NewGraphBranch(riskHandOff, riskOutMap))
 	_ = g.AddBranch(consts.NeutralAnalyst, compose.NewGraphBranch(riskHandOff, riskOutMap))
-	
+
 	// Final edge to end
 	_ = g.AddEdge(consts.RiskJudge, compose.END)
 
@@ -169,3 +170,22 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	return r
 }
 
+func SimpleRouter(nextNode string) func(context.Context, *schema.Message, ...any) (string, error) {
+	return func(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
+		err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
+			state.Goto = nextNode
+			return nil
+		})
+		return nextNode, nil
+	}
+}
+
+func SimpleLoader(prompt string) func(context.Context, string, ...any) ([]*schema.Message, error) {
+	return func(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
+		output = []*schema.Message{
+			schema.SystemMessage(prompt),
+			schema.UserMessage("Proceed with analysis"),
+		}
+		return output, nil
+	}
+}
