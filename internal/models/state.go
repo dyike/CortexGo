@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/eino/schema"
+	"github.com/dyike/CortexGo/internal/config"
 )
 
 type InvestDebateState struct {
@@ -50,6 +51,7 @@ type TradingState struct {
 	Goto                  string             `json:"goto"`
 	MaxIterations         int                `json:"max_iterations"`
 	CurrentIteration      int                `json:"current_iteration"`
+	Config                *config.Config     `json:"config"` // Configuration for dynamic behavior
 	
 	// Enhanced fields to match Python version
 	Phase                 string             `json:"phase"`                  // Current workflow phase: analysis, debate, trading, risk
@@ -70,7 +72,7 @@ type TradingState struct {
 	ReflectionNotes   string           `json:"reflection_notes"`   // Reflections on past performance
 }
 
-func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingState {
+func NewTradingState(symbol string, date time.Time, userPrompt string, cfg *config.Config) *TradingState {
 	return &TradingState{
 		Messages: []*schema.Message{
 			schema.UserMessage(userPrompt),
@@ -104,6 +106,7 @@ func NewTradingState(symbol string, date time.Time, userPrompt string) *TradingS
 		MaxIterations:      20,
 		CurrentIteration:   0,
 		Goto:               "market_analyst",
+		Config:             cfg, // Store configuration for dynamic behavior
 		
 		// Initialize enhanced fields
 		Phase:                       "analysis",

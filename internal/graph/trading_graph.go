@@ -28,7 +28,7 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 	orchestrator := NewTradingOrchestrator[*models.TradingState, *models.TradingState, *models.TradingState](
 		ctx,
 		func(ctx context.Context) *models.TradingState {
-			return &models.TradingState{}
+			return &models.TradingState{Config: cfg}
 		},
 		cfg,
 	)
@@ -49,7 +49,7 @@ func (g *TradingAgentsGraph) Propagate(symbol string, date string) (*models.Trad
 	}
 
 	userPrompt := fmt.Sprintf("Analyze trading opportunities for %s on %s", symbol, date)
-	state := models.NewTradingState(symbol, parsedDate, userPrompt)
+	state := models.NewTradingState(symbol, parsedDate, userPrompt, g.config)
 
 	// Set market data
 	state.MarketData = &models.MarketData{
