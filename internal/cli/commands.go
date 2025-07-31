@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/dyike/CortexGo/internal/config"
-	"github.com/dyike/CortexGo/internal/debug"
 )
 
 // NewRootCmd creates the root command
@@ -249,7 +248,7 @@ func showConfig(cfg *config.Config) {
 		fmt.Printf("Debug URL:            http://localhost:%d\n", cfg.EinoDebugPort)
 	}
 	fmt.Println()
-	
+
 	// Dataflows configuration
 	fmt.Println("🔌 API Configuration:")
 	fmt.Println("─────────────────────")
@@ -258,13 +257,13 @@ func showConfig(cfg *config.Config) {
 	} else {
 		fmt.Println("Finnhub API:          ❌ Not configured")
 	}
-	
+
 	if cfg.RedditClientID != "" && cfg.RedditSecret != "" {
 		fmt.Println("Reddit API:           ✅ Configured")
 	} else {
 		fmt.Println("Reddit API:           ❌ Not configured")
 	}
-	
+
 	fmt.Printf("Reddit User Agent:    %s\n", cfg.RedditUserAgent)
 }
 
@@ -284,11 +283,11 @@ func validateConfig(cfg *config.Config) error {
 	// Check API keys
 	fmt.Print("🔑 Checking API keys... ")
 	warnings := []string{}
-	
+
 	if cfg.FinnhubAPIKey == "" {
 		warnings = append(warnings, "Finnhub API key not configured")
 	}
-	
+
 	if cfg.RedditClientID == "" || cfg.RedditSecret == "" {
 		warnings = append(warnings, "Reddit API credentials not configured")
 	}
@@ -308,7 +307,7 @@ func validateConfig(cfg *config.Config) error {
 		fmt.Println("❌")
 		return fmt.Errorf("max debate rounds must be between 1 and 10")
 	}
-	
+
 	if cfg.MaxRiskDiscussRounds < 1 || cfg.MaxRiskDiscussRounds > 10 {
 		fmt.Println("❌")
 		return fmt.Errorf("max risk discussion rounds must be between 1 and 10")
@@ -328,7 +327,7 @@ func validateConfig(cfg *config.Config) error {
 		fmt.Printf("⚠️  Configuration validation completed with %d warnings.\n", len(warnings))
 		fmt.Println("Some features may be limited without proper API configuration.")
 	}
-	
+
 	fmt.Println()
 	fmt.Println("💡 Tips:")
 	fmt.Println("  • Set CORTEXGO_FINNHUB_API_KEY environment variable for market data")
@@ -350,34 +349,19 @@ The debug server provides a web interface to visualize node execution, inputs, o
 	}
 
 	cmd.Flags().IntP("port", "p", 52538, "Debug server port")
-	
+
 	return cmd
 }
 
 func runDebugCommand(cfg *config.Config) error {
 	fmt.Println("🚀 Starting CortexGo Eino Debug Server...")
 	fmt.Println("═══════════════════════════════════════")
-	
+
 	// Override config with debug enabled
 	cfg.EinoDebugEnabled = true
 	cfg.Debug = true
-	
-	// Use simple debug server to avoid graph type issues
-	debugServer := debug.NewSimpleDebugServer(cfg)
-	
-	// Start debug server
-	if err := debugServer.Start(); err != nil {
-		return fmt.Errorf("failed to start debug server: %w", err)
-	}
-	
-	fmt.Printf("🔍 Debug server started at: %s\n", debugServer.GetDebugURL())
-	fmt.Printf("🏥 Health check at: http://localhost:%d/health\n", cfg.EinoDebugPort+1)
-	fmt.Println("📊 You can now debug Eino orchestration artifacts through the web interface")
-	fmt.Println("💡 Open your browser and navigate to the URL above")
-	fmt.Println("⚠️  Note: Graph compilation issues are bypassed for debug server startup")
-	fmt.Println()
-	fmt.Println("Press Ctrl+C to stop the debug server...")
-	
+
 	// Keep the server running
 	select {}
 }
+
