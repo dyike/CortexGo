@@ -22,7 +22,7 @@ func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) 
 		state.RiskPhaseComplete = true
 		state.WorkflowComplete = true
 		state.Goto = compose.END
-		
+
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_risk_management_decision" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
@@ -30,16 +30,16 @@ func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) 
 			if decision, ok := argMap["final_decision"].(string); ok {
 				state.FinalTradeDecision = decision
 			}
-			
+
 			if reasoning, ok := argMap["detailed_reasoning"].(string); ok {
 				state.RiskDebateState.JudgeDecision = reasoning
 			}
-			
+
 			// Store refined trading plan if provided
 			if refinedPlan, ok := argMap["refined_trading_plan"].(string); ok {
 				state.TraderInvestmentPlan = refinedPlan
 			}
-			
+
 			// Store key argument summaries if provided
 			if keyArgs, ok := argMap["key_arguments_summary"].(string); ok {
 				// Could store this in a new field for future reference
@@ -51,7 +51,7 @@ func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) 
 		if decision, err := processing.ProcessSignal(ctx, state); err == nil {
 			state.Decision = decision
 		}
-		
+
 		return nil
 	})
 	return output, nil
@@ -163,3 +163,4 @@ func NewRiskManagerNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 	return g
 }
+

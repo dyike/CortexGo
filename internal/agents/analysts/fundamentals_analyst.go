@@ -23,7 +23,7 @@ func fundamentalsAnalystRouter(ctx context.Context, input *schema.Message, opts 
 		state.AnalysisPhaseComplete = true
 		state.Phase = "debate"
 		state.Goto = consts.BullResearcher
-		
+
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_fundamentals_analysis" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)

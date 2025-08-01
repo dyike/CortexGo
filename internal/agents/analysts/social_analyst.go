@@ -21,7 +21,7 @@ func socialAnalystRouter(ctx context.Context, input *schema.Message, opts ...any
 		// Mark social analyst as complete and set sequential flow
 		state.SocialAnalystComplete = true
 		state.Goto = consts.NewsAnalyst
-		
+
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_social_analysis" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)

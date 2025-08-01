@@ -21,7 +21,7 @@ func researchManagerRouter(ctx context.Context, input *schema.Message, opts ...a
 		state.DebatePhaseComplete = true
 		state.Phase = "trading"
 		state.Goto = consts.Trader
-		
+
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_research_decision" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)

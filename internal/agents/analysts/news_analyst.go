@@ -23,7 +23,7 @@ func newsAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) 
 		// Mark news analyst as complete and set sequential flow
 		state.NewsAnalystComplete = true
 		state.Goto = consts.FundamentalsAnalyst
-		
+
 		// Handle both tool calls and direct content (matching TradingAgents logic)
 		var report string
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_news_analysis" {
@@ -40,13 +40,13 @@ func newsAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) 
 				report = input.Content
 			}
 		}
-		
+
 		// Store the news report
 		if report != "" {
 			state.NewsReport = report
 			log.Printf("News Analyst completed analysis for %s", state.CompanyOfInterest)
 		}
-		
+
 		return nil
 	})
 	return output, nil
@@ -61,7 +61,7 @@ func loadNewsAnalystMessages(ctx context.Context, name string, opts ...any) (out
 		} else {
 			toolNames = []string{"get_finnhub_news", "get_reddit_news", "get_google_news"}
 		}
-		
+
 		// Prepare context with all dynamic variables
 		context := map[string]string{
 			"CompanyOfInterest": state.CompanyOfInterest,
@@ -69,7 +69,7 @@ func loadNewsAnalystMessages(ctx context.Context, name string, opts ...any) (out
 			"ToolNames":         fmt.Sprintf("%v", toolNames),
 			"OnlineTools":       fmt.Sprintf("%t", state.Config != nil && state.Config.OnlineTools),
 		}
-		
+
 		systemPrompt, err := utils.LoadPromptWithContext("analysts/news_analyst", context)
 		if err != nil {
 			log.Printf("Failed to load news analyst prompt: %v", err)
@@ -85,7 +85,7 @@ func loadNewsAnalystMessages(ctx context.Context, name string, opts ...any) (out
 		contextParts := []string{
 			fmt.Sprintf("Analyze recent news and corporate announcements for %s on %s", state.CompanyOfInterest, state.TradeDate),
 		}
-		
+
 		// Add context from previous analysts if available
 		if state.MarketReport != "" {
 			contextParts = append(contextParts, fmt.Sprintf("Market Analysis Context: %s", state.MarketReport))
@@ -93,16 +93,16 @@ func loadNewsAnalystMessages(ctx context.Context, name string, opts ...any) (out
 		if state.SentimentReport != "" {
 			contextParts = append(contextParts, fmt.Sprintf("Social Media Analysis Context: %s", state.SentimentReport))
 		}
-		
+
 		// Join all context into a comprehensive user message
-		userMessage := fmt.Sprintf("%s\n\nPlease provide comprehensive news analysis building upon the previous context.", 
+		userMessage := fmt.Sprintf("%s\n\nPlease provide comprehensive news analysis building upon the previous context.",
 			contextParts[0])
 		if len(contextParts) > 1 {
-			userMessage = fmt.Sprintf("%s\n\nPrevious Analysis Context:\n%s", 
-				contextParts[0], 
+			userMessage = fmt.Sprintf("%s\n\nPrevious Analysis Context:\n%s",
+				contextParts[0],
 				fmt.Sprintf("- %s", contextParts[1:]))
 		}
-		
+
 		output = append(output, schema.UserMessage(userMessage))
 
 		return nil
