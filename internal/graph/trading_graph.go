@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/cloudwego/eino/compose"
@@ -15,7 +14,6 @@ type TradingAgentsGraph struct {
 	config       *config.Config
 	orchestrator compose.Runnable[*models.TradingState, *models.TradingState]
 	debug        bool
-	debugger     interface{} // placeholder for debug interface
 }
 
 func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
@@ -86,19 +84,4 @@ func (g *TradingAgentsGraph) ReflectAndRemember(positionReturns float64) error {
 	}
 
 	return nil
-}
-
-func (g *TradingAgentsGraph) StartDebugServer() error {
-	if g.debugger != nil {
-		return fmt.Errorf("debug server is already running")
-	}
-
-	// TODO: Initialize debugger when available
-	g.debugger = "placeholder"
-	log.Printf("[TradingGraph] Debug mode enabled")
-	return nil
-}
-
-func (g *TradingAgentsGraph) IsDebugRunning() bool {
-	return g.debugger != nil
 }

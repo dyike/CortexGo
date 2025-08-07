@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,8 +20,13 @@ func main() {
 		return
 	}
 
-	cfg := &config.Config{}
-	graph.NewTradingAgentsGraph(true, cfg)
+	cfg := config.DefaultConfig()
+	tag := graph.NewTradingAgentsGraph(true, cfg)
+	if tag != nil {
+		res, _, _ := tag.Propagate("UI", "2025-08-06")
+		fmt.Println(res)
+	}
+
 	// Blocking process exits
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
