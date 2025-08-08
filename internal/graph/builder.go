@@ -106,21 +106,21 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	)
 
 	// Define output maps for conditional branches only
-	debateOutMap := map[string]bool{
-		consts.BullResearcher:  true,
-		consts.BearResearcher:  true,
-		consts.ResearchManager: true,
-	}
+	// debateOutMap := map[string]bool{
+	// 	consts.BullResearcher:  true,
+	// 	consts.BearResearcher:  true,
+	// 	consts.ResearchManager: true,
+	// }
 
-	riskOutMap := map[string]bool{
-		consts.RiskyAnalyst:   true,
-		consts.SafeAnalyst:    true,
-		consts.NeutralAnalyst: true,
-		consts.RiskJudge:      true,
-	}
+	// riskOutMap := map[string]bool{
+	// 	consts.RiskyAnalyst:   true,
+	// 	consts.SafeAnalyst:    true,
+	// 	consts.NeutralAnalyst: true,
+	// 	consts.RiskJudge:      true,
+	// }
 
 	// 创建分析师节点 - use specialized nodes for better functionality
-	marketAnalystGraph := analysts.NewMarketAnalystNode[I, O](ctx, chatModel)
+	marketAnalystGraph := analysts.NewMarketAnalystNode[I, O](ctx, cfg)
 	socialAnalystGraph := createTypedAgentNode[I, O](ctx, "social media analyst", chatModel)
 	// newsAnalystGraph := analysts.NewNewsAnalystNode[I, O](ctx, chatModel)
 	newsAnalystGraph, _ := analysts.CreateNewsAnalystNode[I, O](ctx, chatModel)
@@ -156,26 +156,27 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 
 	// Sequential edges for analysis phase (linear flow)
 	_ = g.AddEdge(compose.START, consts.MarketAnalyst)
-	_ = g.AddEdge(consts.MarketAnalyst, consts.SocialMediaAnalyst)
-	_ = g.AddEdge(consts.SocialMediaAnalyst, consts.NewsAnalyst)
-	_ = g.AddEdge(consts.NewsAnalyst, consts.FundamentalsAnalyst)
-	_ = g.AddEdge(consts.FundamentalsAnalyst, consts.BullResearcher)
+	_ = g.AddEdge(consts.MarketAnalyst, compose.END)
+	// _ = g.AddEdge(consts.MarketAnalyst, consts.SocialMediaAnalyst)
+	// _ = g.AddEdge(consts.SocialMediaAnalyst, consts.NewsAnalyst)
+	// _ = g.AddEdge(consts.NewsAnalyst, consts.FundamentalsAnalyst)
+	// _ = g.AddEdge(consts.FundamentalsAnalyst, consts.BullResearcher)
 
-	// Conditional branches for debate phase (bull/bear cycle)
-	_ = g.AddBranch(consts.BullResearcher, compose.NewGraphBranch(debateHandOff, debateOutMap))
-	_ = g.AddBranch(consts.BearResearcher, compose.NewGraphBranch(debateHandOff, debateOutMap))
+	// // Conditional branches for debate phase (bull/bear cycle)
+	// _ = g.AddBranch(consts.BullResearcher, compose.NewGraphBranch(debateHandOff, debateOutMap))
+	// _ = g.AddBranch(consts.BearResearcher, compose.NewGraphBranch(debateHandOff, debateOutMap))
 
-	// Sequential edge to trading phase
-	_ = g.AddEdge(consts.ResearchManager, consts.Trader)
-	_ = g.AddEdge(consts.Trader, consts.RiskyAnalyst)
+	// // Sequential edge to trading phase
+	// _ = g.AddEdge(consts.ResearchManager, consts.Trader)
+	// _ = g.AddEdge(consts.Trader, consts.RiskyAnalyst)
 
-	// Conditional branches for risk phase (three-way cycle)
-	_ = g.AddBranch(consts.RiskyAnalyst, compose.NewGraphBranch(riskHandOff, riskOutMap))
-	_ = g.AddBranch(consts.SafeAnalyst, compose.NewGraphBranch(riskHandOff, riskOutMap))
-	_ = g.AddBranch(consts.NeutralAnalyst, compose.NewGraphBranch(riskHandOff, riskOutMap))
+	// // Conditional branches for risk phase (three-way cycle)
+	// _ = g.AddBranch(consts.RiskyAnalyst, compose.NewGraphBranch(riskHandOff, riskOutMap))
+	// _ = g.AddBranch(consts.SafeAnalyst, compose.NewGraphBranch(riskHandOff, riskOutMap))
+	// _ = g.AddBranch(consts.NeutralAnalyst, compose.NewGraphBranch(riskHandOff, riskOutMap))
 
-	// Final edge to end
-	_ = g.AddEdge(consts.RiskJudge, compose.END)
+	// // Final edge to end
+	// _ = g.AddEdge(consts.RiskJudge, compose.END)
 
 	r, err := g.Compile(ctx,
 		compose.WithGraphName("CortexGo-TradingAgents"),
