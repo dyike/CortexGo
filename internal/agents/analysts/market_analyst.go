@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino-ext/components/model/deepseek"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
+	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
 )
@@ -44,8 +45,9 @@ func loadMarketAnalystMessages(ctx context.Context, name string, opts ...any) (o
 			"CompanyOfInterest": state.CompanyOfInterest,
 			"TradeDate":         state.TradeDate,
 		}
-		systemPrompt, err := utils.LoadPromptWithContext("analysts/market_analyst", context)
-		if err != nil {
+
+		systemPrompt, err1 := utils.LoadPromptWithContext("analysts/market_analyst", context)
+		if err1 != nil {
 			log.Printf("Failed to load market analyst prompt: %v", err)
 			// Fallback to basic prompt if file loading fails
 			systemPrompt = "You are a market analyst. Analyze the given market data and provide insights."
@@ -67,7 +69,20 @@ func loadMarketAnalystMessages(ctx context.Context, name string, opts ...any) (o
 	return output, err
 }
 
-func NewMarketAnalystNode[I, O any](ctx context.Context, chatModel model.ChatModel) *compose.Graph[I, O] {
+func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
+	// 创建 deepseek 模型
+	apiKey := cfg.DeepSeekAPIKey
+	chatModel, err := deepseek.NewChatModel(ctx, &deepseek.ChatModelConfig{
+		APIKey:    apiKey,
+		Model:     "deepseek-reasoner",
+		MaxTokens: 2000,
+	})
+	if err != nil {
+		log.Printf("MarkteAnalyst failed to create DeepSeek model: %v", err)
+	}
+	// TODO
+	// chatModel.BindTools()
+
 	g := compose.NewGraph[I, O]()
 
 	// Create a typed loader that accepts the correct input type but ignores it
