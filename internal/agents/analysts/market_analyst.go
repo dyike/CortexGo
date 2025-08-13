@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	"github.com/cloudwego/eino-ext/components/model/deepseek"
+	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/components/tool"
 	t_utils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/compose"
@@ -18,6 +21,7 @@ import (
 )
 
 func marketAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
+	fmt.Printf("++=====+++++, %+v  \n", input)
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		defer func() {
 			output = state.Goto
@@ -40,23 +44,34 @@ func marketAnalystRouter(ctx context.Context, input *schema.Message, opts ...any
 	return output, nil
 }
 
-func loadMarketAnalystMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
-	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
+func loadMarketAnalystMessages(ctx context.Context, name string, opts ...any) ([]*schema.Message, error) {
+	var (
+		output []*schema.Message
+		fErr   error
+	)
+	err := compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		// Load prompt from external markdown file with context
-		context := map[string]string{
+		context := map[string]any{
 			"CompanyOfInterest": state.CompanyOfInterest,
 			"TradeDate":         state.TradeDate,
+			// 添加模板所需的新变量
+			"ToolNames":   strings.Join(getMarketDataTools(), ","), // 需要实现工具名称获取函数
+			"CurrentDate": time.Now().Format("2006-01-02"),
+			"Ticker":      state.CompanyOfInterest,
 		}
 
-		systemPrompt, err1 := utils.LoadPromptWithContext("analysts/market_analyst", context)
-		if err1 != nil {
-			log.Printf("Failed to load market analyst prompt: %v", err)
-			// Fallback to basic prompt if file loading fails
-			systemPrompt = "You are a market analyst. Analyze the given market data and provide insights."
-		}
+		systemTpl, _ := utils.LoadPrompt("analysts/market_analyst")
 
-		output = []*schema.Message{
-			schema.SystemMessage(systemPrompt),
+		// 创建prompt模板
+		promptTemp := prompt.FromMessages(schema.FString,
+			schema.SystemMessage(systemTpl),
+			schema.MessagesPlaceholder("user_input", true),
+		)
+
+		output, fErr = promptTemp.Format(ctx, context)
+		if fErr != nil {
+			log.Printf("MarkteAnalyst failed to format prompt: %v", fErr)
+			return fErr
 		}
 
 		if state.MarketData != nil {
@@ -76,7 +91,7 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 	apiKey := cfg.DeepSeekAPIKey
 	chatModel, err := deepseek.NewChatModel(ctx, &deepseek.ChatModelConfig{
 		APIKey:    apiKey,
-		Model:     "deepseek-reasoner",
+		Model:     "deepseek-chat",
 		MaxTokens: 2000,
 	})
 	if err != nil {
@@ -105,7 +120,7 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 			return &GetMarketDataOutput{
 				Data: []*MarketData{
 					{
-						Date:   "2025-08-11",
+						Date:   "2025-08-06",
 						Open:   100,
 						High:   101,
 						Low:    99,
@@ -146,23 +161,23 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 
 	// Create a typed router that accepts the tools node's output type ([]*schema.Message)
 	typedRouter := func(ctx context.Context, input []*schema.Message, opts ...any) (O, error) {
-	    // Take the first message from tools output
-	    if len(input) == 0 {
-	        var zero O
-	        return zero, fmt.Errorf("no messages from tools node")
-	    }
-	    
-	    nextNode, err := marketAnalystRouter(ctx, input[0], opts...) // Pass first message
-	    if err != nil {
-	        var zero O
-	        return zero, err
-	    }
-	    // Convert string to O type
-	    if result, ok := any(nextNode).(O); ok {
-	        return result, nil
-	    }
-	    var zero O
-	    return zero, nil
+		// Take the first message from tools output
+		if len(input) == 0 {
+			var zero O
+			return zero, fmt.Errorf("no messages from tools node")
+		}
+
+		nextNode, err := marketAnalystRouter(ctx, input[0], opts...) // Pass first message
+		if err != nil {
+			var zero O
+			return zero, err
+		}
+		// Convert string to O type
+		if result, ok := any(nextNode).(O); ok {
+			return result, nil
+		}
+		var zero O
+		return zero, nil
 	}
 
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(typedLoader))
@@ -177,6 +192,10 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 	_ = g.AddEdge("router", compose.END)
 
 	return g
+}
+
+func getMarketDataTools() []string {
+	return []string{"get_market_data"}
 }
 
 type GetMarketDataInput struct {
