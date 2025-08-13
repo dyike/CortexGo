@@ -122,8 +122,7 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	// 创建分析师节点 - use specialized nodes for better functionality
 	marketAnalystGraph := analysts.NewMarketAnalystNode[I, O](ctx, cfg)
 	socialAnalystGraph := createTypedAgentNode[I, O](ctx, "social media analyst", chatModel)
-	// newsAnalystGraph := analysts.NewNewsAnalystNode[I, O](ctx, chatModel)
-	newsAnalystGraph, _ := analysts.CreateNewsAnalystNode[I, O](ctx, chatModel)
+	newsAnalystGraph := analysts.NewNewsAnalystNode[I, O](ctx, chatModel)
 	fundamentalsAnalystGraph := createTypedAgentNode[I, O](ctx, "fundamentals analyst", chatModel)
 
 	// 创建研究员节点 - use simple nodes with proper type adapters
