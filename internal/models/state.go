@@ -34,10 +34,11 @@ type RiskDebateState struct {
 }
 
 type TradingState struct {
-	Messages              []*schema.Message  `json:"messages"`
-	CompanyOfInterest     string             `json:"company_of_interest"`
-	TradeDate             string             `json:"trade_date"`
-	MarketData            *MarketData        `json:"market_data"`
+	Messages          []*schema.Message `json:"messages"` // User messages
+	CompanyOfInterest string            `json:"company_of_interest"`
+	TradeDate         string            `json:"trade_date"`
+	MarketData        []*MarketData     `json:"market_data"`
+
 	MarketReport          string             `json:"market_report"`
 	FundamentalsReport    string             `json:"fundamentals_report"`
 	SentimentReport       string             `json:"sentiment_report"`
@@ -52,24 +53,23 @@ type TradingState struct {
 	MaxIterations         int                `json:"max_iterations"`
 	CurrentIteration      int                `json:"current_iteration"`
 	Config                *config.Config     `json:"config"` // Configuration for dynamic behavior
-	
+
 	// Enhanced fields to match Python version
-	Phase                 string             `json:"phase"`                  // Current workflow phase: analysis, debate, trading, risk
-	WorkflowComplete      bool               `json:"workflow_complete"`      // Whether the workflow has finished
-	AnalysisPhaseComplete bool               `json:"analysis_phase_complete"` // Whether all 4 analysts have completed
-	DebatePhaseComplete   bool               `json:"debate_phase_complete"`   // Whether debate phase is complete
-	TradingPhaseComplete  bool               `json:"trading_phase_complete"`  // Whether trading phase is complete
-	RiskPhaseComplete     bool               `json:"risk_phase_complete"`     // Whether risk phase is complete
-	
+	Phase                 string `json:"phase"`                   // Current workflow phase: analysis, debate, trading, risk
+	WorkflowComplete      bool   `json:"workflow_complete"`       // Whether the workflow has finished
+	AnalysisPhaseComplete bool   `json:"analysis_phase_complete"` // Whether all 4 analysts have completed
+	DebatePhaseComplete   bool   `json:"debate_phase_complete"`   // Whether debate phase is complete
+	TradingPhaseComplete  bool   `json:"trading_phase_complete"`  // Whether trading phase is complete
+	RiskPhaseComplete     bool   `json:"risk_phase_complete"`     // Whether risk phase is complete
+
 	// Agent completion tracking
-	MarketAnalystComplete       bool `json:"market_analyst_complete"`
 	SocialAnalystComplete       bool `json:"social_analyst_complete"`
 	NewsAnalystComplete         bool `json:"news_analyst_complete"`
 	FundamentalsAnalystComplete bool `json:"fundamentals_analyst_complete"`
-	
+
 	// Memory and reflection data
 	PreviousDecisions []TradingDecision `json:"previous_decisions"` // Historical decisions for learning
-	ReflectionNotes   string           `json:"reflection_notes"`   // Reflections on past performance
+	ReflectionNotes   string            `json:"reflection_notes"`   // Reflections on past performance
 }
 
 func NewTradingState(symbol string, date time.Time, userPrompt string, cfg *config.Config) *TradingState {
@@ -79,10 +79,7 @@ func NewTradingState(symbol string, date time.Time, userPrompt string, cfg *conf
 		},
 		CompanyOfInterest: symbol,
 		TradeDate:         date.Format("2006-01-02"),
-		MarketData: &MarketData{
-			Symbol:    symbol,
-			Timestamp: date,
-		},
+		MarketData:        make([]*MarketData, 0),
 		InvestmentDebateState: &InvestDebateState{
 			History:         "",
 			CurrentResponse: "",
@@ -107,7 +104,7 @@ func NewTradingState(symbol string, date time.Time, userPrompt string, cfg *conf
 		CurrentIteration:   0,
 		Goto:               "market_analyst",
 		Config:             cfg, // Store configuration for dynamic behavior
-		
+
 		// Initialize enhanced fields
 		Phase:                       "analysis",
 		WorkflowComplete:            false,
@@ -115,7 +112,6 @@ func NewTradingState(symbol string, date time.Time, userPrompt string, cfg *conf
 		DebatePhaseComplete:         false,
 		TradingPhaseComplete:        false,
 		RiskPhaseComplete:           false,
-		MarketAnalystComplete:       false,
 		SocialAnalystComplete:       false,
 		NewsAnalystComplete:         false,
 		FundamentalsAnalystComplete: false,

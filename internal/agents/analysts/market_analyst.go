@@ -20,53 +20,68 @@ import (
 	"github.com/dyike/CortexGo/internal/utils"
 )
 
-func marketAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
-	fmt.Printf("++=====+++++, %+v  \n", input)
+func router(ctx context.Context, input []*schema.Message, opts ...any) (output string, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		defer func() {
 			output = state.Goto
 		}()
 
-		// Mark market analyst as complete and set sequential flow
-		state.MarketAnalystComplete = true
-		state.Goto = consts.SocialMediaAnalyst
-
-		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_market_analysis" {
-			argMap := map[string]interface{}{}
-			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
-
-			if analysis, ok := argMap["analysis"].(string); ok {
-				state.MarketReport = analysis
+		// 处理工具返回的消息切片
+		if len(input) > 0 {
+			if input[0].Role == schema.Tool && input[0].ToolName == "get_market_data" {
+				marketData := struct {
+					Data []*models.MarketData `json:"data"`
+				}{}
+				_ = json.Unmarshal([]byte(input[0].Content), &marketData)
+				fmt.Println("get_marked_data data: ", marketData.Data)
+				state.MarketData = marketData.Data
+				// state.Goto = consts.MarketAnalyst
+				// return nil
 			}
 		}
+		// Mark market analyst as complete and set sequential flow
+		state.Goto = consts.NewsAnalyst
 		return nil
 	})
 	return output, nil
 }
 
-func loadMarketAnalystMessages(ctx context.Context, name string, opts ...any) ([]*schema.Message, error) {
+func loadMsg(ctx context.Context, name string, opts ...any) ([]*schema.Message, error) {
 	var (
 		output []*schema.Message
 		fErr   error
 	)
 	err := compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		// Load prompt from external markdown file with context
-		context := map[string]any{
-			"CompanyOfInterest": state.CompanyOfInterest,
-			"TradeDate":         state.TradeDate,
-			// 添加模板所需的新变量
-			"ToolNames":   strings.Join(getMarketDataTools(), ","), // 需要实现工具名称获取函数
-			"CurrentDate": time.Now().Format("2006-01-02"),
-			"Ticker":      state.CompanyOfInterest,
-		}
+		systemTpl := `You are a helpful AI assistant, collaborating with other assistants.
+Use the provided tools to progress towards answering the question.
+If you are unable to fully answer, that's OK; another assistant with different tools
+will help where you left off. Execute what you can to make progress.
+If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,
+prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop.
 
-		systemTpl, _ := utils.LoadPrompt("analysts/market_analyst")
+You have access to the following tools:
+- get_market_data: Get market data for a specific symbol and date range.
 
+{system_message}
+
+For your reference, the current date is {current_date}. The company we want to look at is {ticker}
+`
+		systemPrompt, _ := utils.LoadPrompt("analysts/market_analyst")
 		// 创建prompt模板
 		promptTemp := prompt.FromMessages(schema.FString,
 			schema.SystemMessage(systemTpl),
 			schema.MessagesPlaceholder("user_input", true),
 		)
+		// Load prompt from external markdown file with context
+		context := map[string]any{
+			"CompanyOfInterest": state.CompanyOfInterest,
+			"trade_date":        state.TradeDate,
+			// 添加模板所需的新变量
+			"tool_names":     strings.Join(getMarketDataTools(), ","), // 需要实现工具名称获取函数
+			"current_date":   time.Now().Format("2006-01-02"),
+			"ticker":         state.CompanyOfInterest,
+			"system_message": systemPrompt,
+		}
 
 		output, fErr = promptTemp.Format(ctx, context)
 		if fErr != nil {
@@ -74,13 +89,19 @@ func loadMarketAnalystMessages(ctx context.Context, name string, opts ...any) ([
 			return fErr
 		}
 
-		if state.MarketData != nil {
-			marketContext := fmt.Sprintf("Current market data for %s: Price: %.2f, Volume: %d, High: %.2f, Low: %.2f",
-				state.MarketData.Symbol, state.MarketData.Price, state.MarketData.Volume,
-				state.MarketData.High, state.MarketData.Low)
-			output = append(output, schema.UserMessage(marketContext))
+		marketDataStr := ""
+		for _, data := range state.MarketData {
+			marketContext := fmt.Sprintf(
+				"Symbol(%s) market data on %s: Volume: %d, High: %.2f, Low: %.2f, Open: %.2f, Close: %.2f",
+				data.Symbol, data.Date, data.Volume, data.High, data.Low, data.Open, data.Close)
+			if marketDataStr != "" {
+				marketDataStr += "\n"
+			}
+			marketDataStr += marketContext
 		}
-
+		if marketDataStr != "" {
+			output = append(output, schema.UserMessage(marketDataStr))
+		}
 		return nil
 	})
 	return output, err
@@ -118,8 +139,9 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 		},
 		func(ctx context.Context, input *schema.ToolCall) (*GetMarketDataOutput, error) {
 			return &GetMarketDataOutput{
-				Data: []*MarketData{
+				Data: []*models.MarketData{
 					{
+						Symbol: "UI",
 						Date:   "2025-08-06",
 						Open:   100,
 						High:   101,
@@ -153,37 +175,10 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 	}
 
 	g := compose.NewGraph[I, O]()
-
-	// Create a typed loader that accepts the correct input type but ignores it
-	typedLoader := func(ctx context.Context, input I, opts ...any) ([]*schema.Message, error) {
-		return loadMarketAnalystMessages(ctx, "", opts...)
-	}
-
-	// Create a typed router that accepts the tools node's output type ([]*schema.Message)
-	typedRouter := func(ctx context.Context, input []*schema.Message, opts ...any) (O, error) {
-		// Take the first message from tools output
-		if len(input) == 0 {
-			var zero O
-			return zero, fmt.Errorf("no messages from tools node")
-		}
-
-		nextNode, err := marketAnalystRouter(ctx, input[0], opts...) // Pass first message
-		if err != nil {
-			var zero O
-			return zero, err
-		}
-		// Convert string to O type
-		if result, ok := any(nextNode).(O); ok {
-			return result, nil
-		}
-		var zero O
-		return zero, nil
-	}
-
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(typedLoader))
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadMsg))
 	_ = g.AddChatModelNode("agent", chatModel)
 	_ = g.AddToolsNode("tools", toolsNode)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(typedRouter))
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(router))
 
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
@@ -205,14 +200,5 @@ type GetMarketDataInput struct {
 }
 
 type GetMarketDataOutput struct {
-	Data []*MarketData `json:"data"`
-}
-
-type MarketData struct {
-	Date   string  `json:"date"`
-	Open   float64 `json:"open"`
-	High   float64 `json:"high"`
-	Low    float64 `json:"low"`
-	Close  float64 `json:"close"`
-	Volume int64   `json:"volume"`
+	Data []*models.MarketData `json:"data"`
 }

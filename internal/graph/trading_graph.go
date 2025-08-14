@@ -48,19 +48,6 @@ func (g *TradingAgentsGraph) Propagate(symbol string, date string) (*models.Trad
 
 	userPrompt := fmt.Sprintf("Analyze trading opportunities for %s on %s", symbol, date)
 	state := models.NewTradingState(symbol, parsedDate, userPrompt, g.config)
-
-	// Set market data
-	state.MarketData = &models.MarketData{
-		Symbol:    symbol,
-		Price:     125.50,
-		Volume:    1000000,
-		Timestamp: parsedDate,
-		High:      127.80,
-		Low:       123.20,
-		Open:      124.00,
-		Close:     125.50,
-	}
-
 	if g.debug {
 		fmt.Printf("Processing %s for date %s using eino orchestrator\n", symbol, date)
 	}
