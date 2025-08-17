@@ -20,23 +20,22 @@ import (
 	"github.com/dyike/CortexGo/internal/utils"
 )
 
-func router(ctx context.Context, input []*schema.Message, opts ...any) (output string, err error) {
+func router(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		defer func() {
 			output = state.Goto
 		}()
-
-		// 处理工具返回的消息切片
-		if len(input) > 0 {
-			if input[0].Role == schema.Tool && input[0].ToolName == "get_market_data" {
+		// 处理工具返回的消息
+		if input != nil {
+			if input.Role == schema.Tool && input.ToolName == "get_market_data" {
 				marketData := struct {
 					Data []*models.MarketData `json:"data"`
 				}{}
-				_ = json.Unmarshal([]byte(input[0].Content), &marketData)
+				_ = json.Unmarshal([]byte(input.Content), &marketData)
 				fmt.Println("get_marked_data data: ", marketData.Data)
 				state.MarketData = marketData.Data
-				// state.Goto = consts.MarketAnalyst
-				// return nil
+				state.Goto = consts.MarketAnalyst
+				return nil
 			}
 		}
 		// Mark market analyst as complete and set sequential flow
@@ -107,6 +106,26 @@ For your reference, the current date is {current_date}. The company we want to l
 	return output, err
 }
 
+func shoudContinueMarket(ctx context.Context, input *schema.Message) (next string, err error) {
+	fmt.Printf("\n $$$$$$$$$$$$$$$$$input$$$$$$$$$$$========:%+v \n", input)
+	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, st *models.TradingState) error {
+		return nil
+	})
+
+	// Check if the assistant message contains tool calls
+	if input.Role == schema.Assistant && len(input.ToolCalls) > 0 {
+		return "tools", nil
+	}
+
+	// If it's a tool response, continue to agent
+	if input.Role == schema.Tool {
+		return "router", nil
+	}
+
+	// Default case - end the flow
+	return "router", nil
+}
+
 func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	// 创建 deepseek 模型
 	apiKey := cfg.DeepSeekAPIKey
@@ -121,19 +140,22 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 	getMarketDataTool := t_utils.NewTool(
 		&schema.ToolInfo{
 			Name: "get_market_data",
-			Desc: "Get market data",
+			Desc: "Get market data for a specific symbol and date range",
 			ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
 				"symbol": {
-					Type: "String",
-					Desc: "The stock symbol",
+					Type:     "string",
+					Desc:     "The stock symbol",
+					Required: true,
 				},
 				"start_date": {
-					Type: "String",
-					Desc: "The start date",
+					Type:     "string",
+					Desc:     "The start date in YYYY-MM-DD format",
+					Required: true,
 				},
 				"end_date": {
-					Type: "String",
-					Desc: "The end date",
+					Type:     "string",
+					Desc:     "The end date in YYYY-MM-DD format",
+					Required: true,
 				},
 			}),
 		},
@@ -180,10 +202,14 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 	_ = g.AddToolsNode("tools", toolsNode)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(router))
 
+	outMap := map[string]bool{
+		"tools":  true,
+		"router": true,
+	}
+	_ = g.AddBranch("agent", compose.NewGraphBranch(shoudContinueMarket, outMap))
 	_ = g.AddEdge(compose.START, "load")
 	_ = g.AddEdge("load", "agent")
-	_ = g.AddEdge("agent", "tools")
-	_ = g.AddEdge("tools", "router")
+	_ = g.AddEdge("tools", "agent")
 	_ = g.AddEdge("router", compose.END)
 
 	return g
