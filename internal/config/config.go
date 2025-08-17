@@ -37,6 +37,11 @@ type Config struct {
 	RedditUserAgent string `json:"reddit_user_agent"`
 	CacheEnabled    bool   `json:"cache_enabled"`
 	
+	// Longport API Configuration
+	LongportAppKey     string `json:"longport_app_key"`
+	LongportAppSecret  string `json:"longport_app_secret"`
+	LongportAccessToken string `json:"longport_access_token"`
+	
 	// AI Model API Keys
 	DeepSeekAPIKey string `json:"deepseek_api_key"`
 }
@@ -164,6 +169,16 @@ func (c *Config) loadFromEnv() {
 		if port, err := strconv.Atoi(val); err == nil {
 			c.EinoDebugPort = port
 		}
+	}
+	
+	if val := os.Getenv("LONGPORT_APP_KEY"); val != "" {
+		c.LongportAppKey = val
+	}
+	if val := os.Getenv("LONGPORT_APP_SECRET"); val != "" {
+		c.LongportAppSecret = val
+	}
+	if val := os.Getenv("LONGPORT_ACCESS_TOKEN"); val != "" {
+		c.LongportAccessToken = val
 	}
 	
 	if val := os.Getenv("DEEPSEEK_API_KEY"); val != "" {

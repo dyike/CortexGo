@@ -6,7 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/cloudwego/eino v0.3.51
+	github.com/cloudwego/eino v0.4.4
 	github.com/cloudwego/eino-ext/components/model/deepseek v0.0.0-20250729134059-2ccbac3c0210
 	github.com/cloudwego/eino-ext/components/model/openai v0.0.0-20250729134059-2ccbac3c0210
 	github.com/cloudwego/eino-ext/devops v0.1.7

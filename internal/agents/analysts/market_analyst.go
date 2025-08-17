@@ -107,7 +107,6 @@ For your reference, the current date is {current_date}. The company we want to l
 }
 
 func shoudContinueMarket(ctx context.Context, input *schema.Message) (next string, err error) {
-	fmt.Printf("\n $$$$$$$$$$$$$$$$$input$$$$$$$$$$$========:%+v \n", input)
 	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, st *models.TradingState) error {
 		return nil
 	})
@@ -182,7 +181,7 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 		return nil
 	}
 
-	err = chatModel.BindTools([]*schema.ToolInfo{info})
+	chatModelWithTool, _ := chatModel.WithTools([]*schema.ToolInfo{info})
 	if err != nil {
 		log.Printf("MarkteAnalyst failed to bind market data tool: %v", err)
 		return nil
@@ -198,7 +197,7 @@ func NewMarketAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *co
 
 	g := compose.NewGraph[I, O]()
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadMsg))
-	_ = g.AddChatModelNode("agent", chatModel)
+	_ = g.AddChatModelNode("agent", chatModelWithTool)
 	_ = g.AddToolsNode("tools", toolsNode)
 	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(router))
 
