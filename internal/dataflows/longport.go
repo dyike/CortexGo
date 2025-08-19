@@ -47,3 +47,10 @@ func (lpc *LongportClient) GetStaticInfo(ctx context.Context, symbols []string) 
 	}
 	return nil, errors.New("quote context is nil")
 }
+
+func (lpc *LongportClient) GetSticksWithDay(ctx context.Context, symbols string, count int) (sticks []*quote.Candlestick, err error) {
+	if lpc.quoteCtx != nil {
+		return lpc.quoteCtx.Candlesticks(ctx, symbols, quote.PeriodDay, int32(count), quote.AdjustTypeNo)
+	}
+	return nil, errors.New("trade context is nil")
+}

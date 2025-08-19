@@ -21,11 +21,19 @@ func main() {
 		panic(err)
 	}
 
-	infos, err := longbridge.GetStaticInfo(ctx, []string{symbol})
+	// infos, err := longbridge.GetStaticInfo(ctx, []string{symbol})
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// payload, _ := json.Marshal(infos)
+	// fmt.Println(string(payload))
+
+	sticks, err := longbridge.GetSticksWithDay(ctx, symbol, 10)
 	if err != nil {
 		panic(err)
 	}
 
-	payload, _ := json.Marshal(infos)
+	payload, _ := json.Marshal(sticks)
 	fmt.Println(string(payload))
 }
