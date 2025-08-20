@@ -119,8 +119,8 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	// 	consts.RiskJudge:      true,
 	// }
 
-	// 创建分析师节点 - use specialized nodes for better functionality
-	marketAnalystGraph := analysts.NewMarketAnalystNode[I, O](ctx, cfg)
+	// 创建分析师节点 - use new ReAct-based MarketAnalyst
+	marketAnalystGraph := analysts.CreateMarketAnalystGraph[I, O](ctx, cfg)
 	socialAnalystGraph := createTypedAgentNode[I, O](ctx, "social media analyst", chatModel)
 	newsAnalystGraph := analysts.NewNewsAnalystNode[I, O](ctx, chatModel)
 	fundamentalsAnalystGraph := createTypedAgentNode[I, O](ctx, "fundamentals analyst", chatModel)

@@ -24,7 +24,7 @@ func main() {
 	}
 	cfg := config.DefaultConfig()
 
-	symbol := "UI"
+	symbol := "UI.US"
 	tradeDate := "2025-08-06"
 
 	parsedDate, err := time.Parse("2006-01-02", tradeDate)
