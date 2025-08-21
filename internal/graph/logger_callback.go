@@ -104,12 +104,9 @@ func (cb *LoggerCallback) OnStart(ctx context.Context, info *callbacks.RunInfo, 
 }
 
 func (cb *LoggerCallback) OnEnd(ctx context.Context, info *callbacks.RunInfo, output callbacks.CallbackOutput) context.Context {
-	//fmt.Println("=========[OnEnd]=========", info.Name, "|", info.Component, "|", info.Type)
-	//outputStr, _ := json.MarshalIndent(output, "", "  ")
-	//if len(outputStr) > 200 {
-	//	outputStr = outputStr[:200]
-	//}
-	//fmt.Println(string(outputStr))
+	// fmt.Println("=========[OnEnd]=========", info.Name, "|", info.Component, "|", info.Type)
+	// outputStr, _ := json.MarshalIndent(output, "", "  ")
+	// fmt.Println(string(outputStr))
 	return ctx
 }
 

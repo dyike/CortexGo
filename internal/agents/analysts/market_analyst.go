@@ -61,6 +61,12 @@ func CreateMarketAnalystGraph[I, O any](ctx context.Context, cfg *config.Config)
 		// Update trading state based on the analysis result
 		err := compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 			if state != nil {
+				// Track all messages flowing through the router (including tool results)
+				if input != nil {
+					state.Messages = append(state.Messages, input)
+					log.Printf("Router: Added message to state - Role: %s, Content length: %d", input.Role, len(input.Content))
+				}
+
 				// Store the market analysis result
 				state.Goto = consts.SocialMediaAnalyst // Set next node
 				if input != nil {
@@ -200,7 +206,7 @@ func createMarketDataTool(cfg *config.Config) tool.BaseTool {
 		},
 		func(ctx context.Context, input MarketDataInput) (*GetMarketDataOutput, error) {
 			// Debug: Log the input
-			log.Printf("Market data tool called with input: %+v", input)
+			// log.Printf("Market data tool called with input: %+v", input)
 
 			if input.Symbol == "" {
 				return nil, fmt.Errorf("symbol parameter is required")
@@ -243,7 +249,7 @@ func createMarketDataTool(cfg *config.Config) tool.BaseTool {
 							Volume: stick.Volume,
 						})
 					}
-					log.Printf("Successfully retrieved %d market data records for %s", len(marketData), input.Symbol)
+					// log.Printf("Successfully retrieved %d market data records for %s", len(marketData), input.Symbol)
 					return &GetMarketDataOutput{Data: marketData}, nil
 				}
 				log.Printf("Failed to get real market data for %s: %v", input.Symbol, err)
