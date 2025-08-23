@@ -120,7 +120,7 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	// }
 
 	// 创建分析师节点 - use new ReAct-based MarketAnalyst
-	marketAnalystGraph := analysts.CreateMarketAnalystGraph[I, O](ctx, cfg)
+	marketAnalystGraph := analysts.NewMarketAnalyst[I, O](ctx, cfg)
 	socialAnalystGraph := createTypedAgentNode[I, O](ctx, "social media analyst", chatModel)
 	newsAnalystGraph := analysts.NewNewsAnalystNode[I, O](ctx, chatModel)
 	fundamentalsAnalystGraph := createTypedAgentNode[I, O](ctx, "fundamentals analyst", chatModel)
