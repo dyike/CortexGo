@@ -2,16 +2,13 @@ package analysts
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/components/tool"
-	"github.com/cloudwego/eino/components/tool/utils"
+	t_utils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/flow/agent/react"
 	"github.com/cloudwego/eino/schema"
@@ -19,7 +16,6 @@ import (
 	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/dataflows"
 	"github.com/dyike/CortexGo/internal/models"
-	t_utils "github.com/dyike/CortexGo/internal/utils"
 )
 
 func NewMarketAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
@@ -30,13 +26,22 @@ func NewMarketAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compos
 		getMarketDataTool,
 	}
 
+	log.Printf("Created %d market tools", len(marketTools))
+
+	// Test tool info
+	if toolInfo, err := getMarketDataTool.Info(ctx); err != nil {
+		log.Printf("Failed to get tool info: %v", err)
+	} else {
+		log.Printf("Tool info - Name: %s, Desc: %s", toolInfo.Name, toolInfo.Desc)
+	}
+
 	chatModel, err := createMarketChatModel(ctx, cfg)
 	if err != nil {
 		log.Fatalf("failed to create market chat model: %v", err)
 	}
 
 	agent, err := react.NewAgent(ctx, &react.AgentConfig{
-		MaxStep:          6,
+		MaxStep:          10,
 		ToolCallingModel: chatModel,
 		ToolsConfig: compose.ToolsNodeConfig{
 			Tools: marketTools,
@@ -45,6 +50,8 @@ func NewMarketAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compos
 	if err != nil {
 		log.Fatalf("failed to create agent: %v", err)
 	}
+
+	log.Printf("Created ReAct agent with %d tools", len(marketTools))
 
 	agentLambda, err := compose.AnyLambda(agent.Generate, agent.Stream, nil, nil)
 	if err != nil {
@@ -68,41 +75,27 @@ func loadMarketMsg(ctx context.Context, name string, opts ...any) ([]*schema.Mes
 		err    error
 	)
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		systemTpl := `You are a helpful AI assistant, collaborating with other assistants.
-Use the provided tools to progress towards answering the question.
-If you are unable to fully answer, that's OK; another assistant with different tools
-will help where you left off. Execute what you can to make progress.
-If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,
-prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop.
+		systemMsg := fmt.Sprintf(`You are a market analyst assistant. Your task is to analyze trading opportunities for %s on %s.
 
-You have access to the following tools:
-- get_market_data: Get market data for a specific symbol and date range.
+You must use the get_market_data tool to fetch the latest market data before providing any analysis.
 
-{system_message}
+Instructions:
+1. First call get_market_data with symbol="%s" to get market data
+2. Analyze the market data (price trends, volume, volatility)
+3. Provide a comprehensive trading recommendation (BUY/HOLD/SELL)
+4. Include specific reasoning based on the data
 
-For your reference, the current date is {current_date}. The company we want to look at is {ticker}
-`
-		systemPrompt, _ := t_utils.LoadPrompt("analysts/market_analyst")
-		// 创建prompt模板
-		promptTemp := prompt.FromMessages(schema.FString,
-			schema.SystemMessage(systemTpl),
-			schema.MessagesPlaceholder("user_input", true),
-		)
-		// Load prompt from external markdown file with context
-		context := map[string]any{
-			"CompanyOfInterest": state.CompanyOfInterest,
-			"trade_date":        state.TradeDate,
-			// 添加模板所需的新变量
-			"tool_names":     strings.Join(getMarketDataTools(), ","), // 需要实现工具名称获取函数
-			"current_date":   time.Now().Format("2006-01-02"),
-			"ticker":         state.CompanyOfInterest,
-			"system_message": systemPrompt,
-		}
+Current date: %s`,
+			state.CompanyOfInterest,
+			state.TradeDate,
+			state.CompanyOfInterest,
+			time.Now().Format("2006-01-02"))
 
-		output, err = promptTemp.Format(ctx, context)
-		if err != nil {
-			log.Printf("MarkteAnalyst failed to format prompt: %v", err)
-			return err
+		userMsg := fmt.Sprintf("Please analyze trading opportunities for %s. You MUST start by calling the get_market_data tool with symbol=%s to get recent market data, then provide analysis based on the data.", state.CompanyOfInterest, state.CompanyOfInterest)
+
+		output = []*schema.Message{
+			schema.SystemMessage(systemMsg),
+			schema.UserMessage(userMsg),
 		}
 
 		return nil
@@ -115,20 +108,34 @@ func marketRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 		defer func() {
 			output = state.Goto
 		}()
-		// 处理工具返回的消息
+
+		// 调试：打印接收到的消息
 		if input != nil {
-			if input.Role == schema.Tool && input.ToolName == "get_market_data" {
-				marketData := struct {
-					Data []*models.MarketData `json:"data"`
-				}{}
-				_ = json.Unmarshal([]byte(input.Content), &marketData)
-				fmt.Println("get_marked_data data: ", marketData.Data)
-				state.MarketData = marketData.Data
-				state.Goto = consts.MarketAnalyst
-				return nil
+			log.Printf("Market router received message - Role: %s, Content length: %d", input.Role, len(input.Content))
+			if len(input.Content) > 200 {
+				log.Printf("Message preview: %s...", input.Content[:200])
+			} else {
+				log.Printf("Full message: %s", input.Content)
+			}
+
+			// 检查是否有工具调用
+			if len(input.ToolCalls) > 0 {
+				log.Printf("Message contains %d tool calls", len(input.ToolCalls))
 			}
 		}
-		// Mark market analyst as complete and set sequential flow
+
+		// 在 ReAct Agent 模式下，这里收到的是 Agent 的最终分析结果
+		if input != nil {
+			// 存储市场分析报告
+			state.MarketReport = input.Content
+
+			// 添加消息到状态
+			state.Messages = append(state.Messages, input)
+
+			log.Printf("Market analysis completed. Content length: %d", len(input.Content))
+		}
+
+		// 设置下一步流程
 		state.Goto = consts.NewsAnalyst
 		return nil
 	})
@@ -149,13 +156,9 @@ func createMarketChatModel(ctx context.Context, cfg *config.Config) (*openai.Cha
 	return chatModel, nil
 }
 
-func getMarketDataTools() []string {
-	return []string{"get_market_data"}
-}
-
 // createMarketDataTool creates the market data tool using proper generic types
 func createMarketDataTool(cfg *config.Config) tool.BaseTool {
-	return utils.NewTool[MarketDataInput, *GetMarketDataOutput](
+	return t_utils.NewTool[MarketDataInput, *GetMarketDataOutput](
 		&schema.ToolInfo{
 			Name: "get_market_data",
 			Desc: "Get market data for a specific symbol and date range",
@@ -174,7 +177,7 @@ func createMarketDataTool(cfg *config.Config) tool.BaseTool {
 		},
 		func(ctx context.Context, input MarketDataInput) (*GetMarketDataOutput, error) {
 			// Debug: Log the input
-			// log.Printf("Market data tool called with input: %+v", input)
+			log.Printf("Market data tool called with input: %+v", input)
 
 			if input.Symbol == "" {
 				return nil, fmt.Errorf("symbol parameter is required")
