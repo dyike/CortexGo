@@ -40,12 +40,40 @@ func NewMarketAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compos
 		log.Fatalf("failed to create market chat model: %v", err)
 	}
 
+	// 添加工具调用检查器（来自参考实现）
+	toolCallChecker := func(ctx context.Context, sr *schema.StreamReader[*schema.Message]) (bool, error) {
+		defer sr.Close()
+		for {
+			msg, err := sr.Recv()
+			if err != nil {
+				if err.Error() == "EOF" {
+					return false, nil
+				}
+				return false, err
+			}
+			if len(msg.ToolCalls) > 0 {
+				log.Printf("StreamToolCallChecker detected tool calls: %d", len(msg.ToolCalls))
+				return true, nil
+			}
+		}
+	}
+
 	agent, err := react.NewAgent(ctx, &react.AgentConfig{
-		MaxStep:          10,
+		MaxStep:          40,  // 增加最大步数，参考实现用的是40
 		ToolCallingModel: chatModel,
 		ToolsConfig: compose.ToolsNodeConfig{
 			Tools: marketTools,
 		},
+		// 添加调试选项
+		MessageModifier: func(ctx context.Context, input []*schema.Message) []*schema.Message {
+			log.Printf("Agent processing %d messages", len(input))
+			for i, msg := range input {
+				log.Printf("Message %d: Role=%s, ToolCalls=%d, Content length=%d", i, msg.Role, len(msg.ToolCalls), len(msg.Content))
+			}
+			return input
+		},
+		// 添加流式工具调用检查器
+		StreamToolCallChecker: toolCallChecker,
 	})
 	if err != nil {
 		log.Fatalf("failed to create agent: %v", err)
@@ -120,19 +148,14 @@ func marketRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 
 			// 检查是否有工具调用
 			if len(input.ToolCalls) > 0 {
-				log.Printf("Message contains %d tool calls", len(input.ToolCalls))
+				log.Printf("WARNING: Message contains %d tool calls", len(input.ToolCalls))
 			}
-		}
-
-		// 在 ReAct Agent 模式下，这里收到的是 Agent 的最终分析结果
-		if input != nil {
-			// 存储市场分析报告
+			
+			// 存储市场分析报告（无论是否有工具调用）
 			state.MarketReport = input.Content
-
-			// 添加消息到状态
 			state.Messages = append(state.Messages, input)
-
-			log.Printf("Market analysis completed. Content length: %d", len(input.Content))
+			
+			log.Printf("Market analysis step completed. Content length: %d", len(input.Content))
 		}
 
 		// 设置下一步流程
