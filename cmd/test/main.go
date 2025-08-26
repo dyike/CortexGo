@@ -10,6 +10,7 @@ import (
 
 	"github.com/cloudwego/eino-ext/devops"
 	"github.com/cloudwego/eino/compose"
+	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/graph"
 	"github.com/dyike/CortexGo/internal/models"
@@ -23,6 +24,8 @@ func main() {
 		return
 	}
 	cfg := config.DefaultConfig()
+
+	agents.InitChatModel(ctx, cfg)
 
 	symbol := "UI.US"
 	tradeDate := "2025-08-06"

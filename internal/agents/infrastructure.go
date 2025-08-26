@@ -6,11 +6,7 @@ import (
 	"os"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
-	"github.com/cloudwego/eino/components/model"
 )
-
-// ChatModel is the shared chat model instance for all agents
-var ChatModel model.ChatModel
 
 // InitModel initializes the chat model for agents
 func InitModel() error {
@@ -32,4 +28,3 @@ func InitModel() error {
 	ChatModel = cm
 	return nil
 }
-

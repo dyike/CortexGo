@@ -2,11 +2,9 @@ package analysts
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
-	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
@@ -33,14 +31,9 @@ func NewMarketAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compos
 		log.Printf("Tool info - Name: %s, Desc: %s", toolInfo.Name, toolInfo.Desc)
 	}
 
-	chatModel, err := createMarketChatModel(ctx, cfg)
-	if err != nil {
-		log.Fatalf("failed to create market chat model: %v", err)
-	}
-
 	agent, err := react.NewAgent(ctx, &react.AgentConfig{
 		MaxStep:          40, // 增加最大步数，参考实现用的是40
-		ToolCallingModel: chatModel,
+		ToolCallingModel: agents.ChatModel,
 		ToolsConfig: compose.ToolsNodeConfig{
 			Tools: marketTools,
 		},
@@ -131,18 +124,4 @@ func marketRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 		return nil
 	})
 	return output, nil
-}
-
-func createMarketChatModel(ctx context.Context, cfg *config.Config) (*openai.ChatModel, error) {
-	maxTokens := 8192
-	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
-		BaseURL:   "https://api.deepseek.com/v1",
-		APIKey:    cfg.DeepSeekAPIKey,
-		Model:     "deepseek-chat",
-		MaxTokens: &maxTokens,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create DeepSeek model: %v", err)
-	}
-	return chatModel, nil
 }
