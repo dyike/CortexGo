@@ -19,16 +19,6 @@ type TradingDecision struct {
 	PositionSize float64 `json:"position_size"` // Added for signal processor
 }
 
-type MarketData struct {
-	Symbol string  `json:"symbol"`
-	Volume int64   `json:"volume"`
-	Date   string  `json:"date"`
-	High   float64 `json:"high"`
-	Low    float64 `json:"low"`
-	Open   float64 `json:"open"`
-	Close  float64 `json:"close"`
-}
-
 type AnalysisReport struct {
 	Analyst     string                 `json:"analyst"`
 	Symbol      string                 `json:"symbol"`
