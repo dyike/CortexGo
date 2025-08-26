@@ -39,10 +39,12 @@ type TradingState struct {
 	TradeDate         string            `json:"trade_date"`
 	MarketData        []*MarketData     `json:"market_data"`
 
-	MarketReport          string             `json:"market_report"`
-	FundamentalsReport    string             `json:"fundamentals_report"`
+	MarketReport       string `json:"market_report"`
+	FundamentalsReport string `json:"fundamentals_report"`
+	NewsReport         string `json:"news_report"`
+	SocialReport       string `json:"social_report"`
+
 	SentimentReport       string             `json:"sentiment_report"`
-	NewsReport            string             `json:"news_report"`
 	InvestmentDebateState *InvestDebateState `json:"investment_debate_state"`
 	RiskDebateState       *RiskDebateState   `json:"risk_debate_state"`
 	TraderInvestmentPlan  string             `json:"trader_investment_plan"`

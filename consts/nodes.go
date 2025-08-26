@@ -3,7 +3,7 @@ package consts
 const (
 	// 分析师节点
 	MarketAnalyst       = "market_analyst"
-	SocialMediaAnalyst  = "social_media_analyst"
+	SocialAnalyst       = "social_analyst"
 	NewsAnalyst         = "news_analyst"
 	FundamentalsAnalyst = "fundamentals_analyst"
 

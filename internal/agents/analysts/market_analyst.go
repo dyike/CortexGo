@@ -120,7 +120,7 @@ func marketRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 			state.Messages = append(state.Messages, input)
 		}
 		// 设置下一步流程
-		state.Goto = consts.NewsAnalyst
+		state.Goto = consts.SocialAnalyst
 		return nil
 	})
 	return output, nil

@@ -62,7 +62,7 @@ func createTypedAgentNode[I, O any](ctx context.Context, role string, chatModel 
 
 	// Create a router that accepts the correct message type
 	typedRouter := func(ctx context.Context, input *schema.Message, opts ...any) (O, error) {
-		nextNode, err := SimpleRouter(consts.SocialMediaAnalyst)(ctx, input, opts...)
+		nextNode, err := SimpleRouter(consts.SocialAnalyst)(ctx, input, opts...)
 		if err != nil {
 			var zero O
 			return zero, err
@@ -121,8 +121,9 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 
 	// 创建分析师节点 - use new ReAct-based MarketAnalyst
 	marketAnalystGraph := analysts.NewMarketAnalyst[I, O](ctx, cfg)
-	socialAnalystGraph := createTypedAgentNode[I, O](ctx, "social media analyst", chatModel)
-	newsAnalystGraph := analysts.NewNewsAnalystNode[I, O](ctx, chatModel)
+	socialAnalystGraph := analysts.NewSocialAnalyst[I, O](ctx, cfg)
+	newsAnalystGraph := analysts.NewNewsAnalyst[I, O](ctx, cfg)
+
 	fundamentalsAnalystGraph := createTypedAgentNode[I, O](ctx, "fundamentals analyst", chatModel)
 
 	// 创建研究员节点 - use simple nodes with proper type adapters
@@ -141,7 +142,7 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 
 	// 添加所有节点
 	_ = g.AddGraphNode(consts.MarketAnalyst, marketAnalystGraph, compose.WithNodeName(consts.MarketAnalyst))
-	_ = g.AddGraphNode(consts.SocialMediaAnalyst, socialAnalystGraph, compose.WithNodeName(consts.SocialMediaAnalyst))
+	_ = g.AddGraphNode(consts.SocialAnalyst, socialAnalystGraph, compose.WithNodeName(consts.SocialAnalyst))
 	_ = g.AddGraphNode(consts.NewsAnalyst, newsAnalystGraph, compose.WithNodeName(consts.NewsAnalyst))
 	_ = g.AddGraphNode(consts.FundamentalsAnalyst, fundamentalsAnalystGraph, compose.WithNodeName(consts.FundamentalsAnalyst))
 	_ = g.AddGraphNode(consts.BullResearcher, bullResearcherGraph, compose.WithNodeName(consts.BullResearcher))
@@ -155,9 +156,9 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 
 	// Sequential edges for analysis phase (linear flow)
 	_ = g.AddEdge(compose.START, consts.MarketAnalyst)
-	_ = g.AddEdge(consts.MarketAnalyst, compose.END)
-	// _ = g.AddEdge(consts.MarketAnalyst, consts.SocialMediaAnalyst)
-	// _ = g.AddEdge(consts.SocialMediaAnalyst, consts.NewsAnalyst)
+	_ = g.AddEdge(consts.MarketAnalyst, consts.SocialAnalyst)
+	_ = g.AddEdge(consts.SocialAnalyst, consts.NewsAnalyst)
+	_ = g.AddEdge(consts.NewsAnalyst, compose.END)
 	// _ = g.AddEdge(consts.NewsAnalyst, consts.FundamentalsAnalyst)
 	// _ = g.AddEdge(consts.FundamentalsAnalyst, consts.BullResearcher)
 
