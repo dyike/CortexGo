@@ -18,3 +18,23 @@ type MarketData struct {
 	Open   float64 `json:"open"`
 	Close  float64 `json:"close"`
 }
+
+// StockIndicatorInput represents the input for technical indicator analysis
+type StockIndicatorInput struct {
+	Symbol       string `json:"symbol"`
+	Indicator    string `json:"indicator"`
+	CurrDate     string `json:"curr_date"`
+	LookBackDays int    `json:"look_back_days"`
+	Online       bool   `json:"online"`
+}
+
+// StockIndicatorOutput represents the output of technical indicator analysis
+type StockIndicatorOutput struct {
+	Result string `json:"result"`
+}
+
+// IndicatorValue represents a single indicator value at a specific date
+type IndicatorValue struct {
+	Date  string
+	Value float64
+}

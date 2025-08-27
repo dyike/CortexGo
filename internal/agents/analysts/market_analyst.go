@@ -21,8 +21,10 @@ import (
 func NewMarketAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 	getMarketDataTool := tools.NewMarketool(cfg)
+	getStockStatsIndicatorsWindowTool := tools.NewStockIndicatorTool(cfg)
 	marketTools := []tool.BaseTool{
 		getMarketDataTool,
+		getStockStatsIndicatorsWindowTool,
 	}
 	// Test tool info
 	if toolInfo, err := getMarketDataTool.Info(ctx); err != nil {
@@ -82,6 +84,7 @@ prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the t
 
 You have access to the following tools:
 - get_market_data: Get market data for a specific symbol and date range.
+- get_stock_stats_indicators_window: Get technical indicator analysis for a stock over a specified time window
 
 {system_message}
 

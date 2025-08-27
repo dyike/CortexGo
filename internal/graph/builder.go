@@ -156,9 +156,9 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 
 	// Sequential edges for analysis phase (linear flow)
 	_ = g.AddEdge(compose.START, consts.MarketAnalyst)
-	_ = g.AddEdge(consts.MarketAnalyst, consts.SocialAnalyst)
-	_ = g.AddEdge(consts.SocialAnalyst, consts.NewsAnalyst)
-	_ = g.AddEdge(consts.NewsAnalyst, compose.END)
+	// _ = g.AddEdge(consts.MarketAnalyst, consts.SocialAnalyst)
+	// _ = g.AddEdge(consts.SocialAnalyst, consts.NewsAnalyst)
+	_ = g.AddEdge(consts.MarketAnalyst, compose.END)
 	// _ = g.AddEdge(consts.NewsAnalyst, consts.FundamentalsAnalyst)
 	// _ = g.AddEdge(consts.FundamentalsAnalyst, consts.BullResearcher)
 
