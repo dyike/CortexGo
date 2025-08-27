@@ -2,6 +2,7 @@ package analysts
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -120,9 +121,15 @@ func marketRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 		}()
 		if input != nil {
 			// 存储市场分析报告（无论是否有工具调用）
-			// TODO
 			state.MarketReport = input.Content
 			state.Messages = append(state.Messages, input)
+
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "market_analyst_report.md"
+			// 将报告写入本地markdown文件
+			if err := utils.WriteMarkdown(filePath, fileName, input.Content); err != nil {
+				log.Printf("Failed to write market report to file: %v", err)
+			}
 		}
 		// 设置下一步流程
 		state.Goto = consts.SocialAnalyst

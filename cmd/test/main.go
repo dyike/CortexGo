@@ -39,11 +39,11 @@ func main() {
 	// Add logger callback
 	outChan := make(chan string)
 	go func() {
-		for _ = range outChan {
-		}
-		// for out := range outChan {
-		// 	fmt.Print(out)
+		// for _ = range outChan {
 		// }
+		for out := range outChan {
+			fmt.Print(out)
+		}
 	}()
 
 	genFunc := func(ctx context.Context) *models.TradingState {
