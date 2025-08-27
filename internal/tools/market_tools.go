@@ -121,16 +121,11 @@ func NewStockIndicatorTool(cfg *config.Config) tool.BaseTool {
 	return t_utils.NewTool[models.StockIndicatorInput, *models.StockIndicatorOutput](
 		&schema.ToolInfo{
 			Name: "get_stock_stats_indicators_window",
-			Desc: "Get technical indicator analysis for a stock over a specified time window",
+			Desc: "Get comprehensive technical indicator analysis for a stock with all major indicators calculated at once",
 			ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
 				"symbol": {
 					Type:     "string",
 					Desc:     "Ticker symbol of the company",
-					Required: true,
-				},
-				"indicator": {
-					Type:     "string",
-					Desc:     "Technical indicator to get the analysis and report of",
 					Required: true,
 				},
 				"curr_date": {
@@ -140,7 +135,7 @@ func NewStockIndicatorTool(cfg *config.Config) tool.BaseTool {
 				},
 				"look_back_days": {
 					Type:     "integer",
-					Desc:     "How many days to look back",
+					Desc:     "How many days to look back for analysis",
 					Required: true,
 				},
 				"online": {
@@ -153,17 +148,6 @@ func NewStockIndicatorTool(cfg *config.Config) tool.BaseTool {
 		func(ctx context.Context, input models.StockIndicatorInput) (*models.StockIndicatorOutput, error) {
 			log.Printf("Stock indicator tool called with input: %+v", input)
 
-			// Validate indicator
-			if _, exists := bestIndParams[input.Indicator]; !exists {
-				supportedIndicators := make([]string, 0, len(bestIndParams))
-				for k := range bestIndParams {
-					supportedIndicators = append(supportedIndicators, k)
-				}
-				sort.Strings(supportedIndicators)
-				return nil, fmt.Errorf("indicator %s is not supported. Please choose from: %s",
-					input.Indicator, strings.Join(supportedIndicators, ", "))
-			}
-
 			// Parse current date
 			currDate, err := time.Parse("2006-01-02", input.CurrDate)
 			if err != nil {
@@ -173,10 +157,16 @@ func NewStockIndicatorTool(cfg *config.Config) tool.BaseTool {
 			// Calculate start date
 			startDate := currDate.AddDate(0, 0, -input.LookBackDays)
 
-			// Get market data
+			// Get market data once with sufficient buffer for all indicators
+			// 200 SMA needs 200 days, MACD Signal needs 26+9=35 days, so we use 250 as buffer
+			bufferDays := 250
+			if input.LookBackDays < 30 {
+				bufferDays = 300 // More buffer for short look-back periods
+			}
+			
 			var marketData []*models.MarketData
 			if input.Online {
-				marketData, err = getOnlineMarketDataForIndicator(ctx, cfg, input.Symbol, input.LookBackDays+50) // extra buffer for indicators
+				marketData, err = getOnlineMarketDataForIndicator(ctx, cfg, input.Symbol, input.LookBackDays+bufferDays)
 			} else {
 				marketData, err = getOfflineMarketDataForIndicator(ctx, cfg, input.Symbol, startDate, currDate)
 			}
@@ -189,27 +179,71 @@ func NewStockIndicatorTool(cfg *config.Config) tool.BaseTool {
 				return nil, fmt.Errorf("no market data available for symbol %s", input.Symbol)
 			}
 
-			// Calculate indicators
-			indicatorValues, err := calculateIndicator(marketData, input.Indicator, startDate, currDate)
-			if err != nil {
-				return nil, fmt.Errorf("failed to calculate indicator: %v", err)
+			log.Printf("Retrieved %d market data points for %s (requested %d + %d buffer)", 
+				len(marketData), input.Symbol, input.LookBackDays, bufferDays)
+
+			// Calculate all indicators at once
+			allIndicators := calculateAllIndicators(marketData, startDate, currDate)
+
+			// Format comprehensive result
+			var resultBuilder strings.Builder
+			resultBuilder.WriteString(fmt.Sprintf("# Technical Analysis for %s from %s to %s\n\n",
+				input.Symbol, startDate.Format("2006-01-02"), input.CurrDate))
+
+			// Group indicators by category
+			categories := map[string][]string{
+				"Moving Averages":       {"close_10_ema", "close_50_sma", "close_200_sma", "vwma"},
+				"Momentum Indicators":   {"rsi", "macd", "macds", "macdh", "mfi"},
+				"Volatility Indicators": {"boll", "boll_ub", "boll_lb", "atr"},
 			}
 
-			// Format result
-			var indString strings.Builder
-			for _, value := range indicatorValues {
-				indString.WriteString(fmt.Sprintf("%s: %.4f\n", value.Date, value.Value))
+			for category, indicators := range categories {
+				resultBuilder.WriteString(fmt.Sprintf("## %s\n\n", category))
+
+				categoryHasData := false
+				for _, indicator := range indicators {
+					if values, exists := allIndicators[indicator]; exists && len(values) > 0 {
+						categoryHasData = true
+						// Show latest value and description
+						latestValue := values[len(values)-1]
+						resultBuilder.WriteString(fmt.Sprintf("### %s\n", indicator))
+						resultBuilder.WriteString(fmt.Sprintf("**Latest Value (%s):** %.4f\n\n", latestValue.Date, latestValue.Value))
+
+						// Show recent 5 values
+						resultBuilder.WriteString("**Recent Values:**\n")
+						start := len(values) - 5
+						if start < 0 {
+							start = 0
+						}
+						for i := start; i < len(values); i++ {
+							resultBuilder.WriteString(fmt.Sprintf("- %s: %.4f\n", values[i].Date, values[i].Value))
+						}
+
+						// Add description
+						if desc, exists := bestIndParams[indicator]; exists {
+							resultBuilder.WriteString(fmt.Sprintf("\n*%s*\n\n", desc))
+						}
+					} else {
+						// Indicator failed to calculate
+						resultBuilder.WriteString(fmt.Sprintf("### %s\n", indicator))
+						resultBuilder.WriteString("**Status:** Data insufficient for calculation\n\n")
+						if desc, exists := bestIndParams[indicator]; exists {
+							resultBuilder.WriteString(fmt.Sprintf("*%s*\n\n", desc))
+						}
+					}
+				}
+				
+				if !categoryHasData {
+					resultBuilder.WriteString("*No indicators in this category could be calculated with the available data.*\n\n")
+				}
 			}
 
-			resultStr := fmt.Sprintf("## %s values from %s to %s:\n\n%s\n\n%s",
-				input.Indicator,
-				startDate.Format("2006-01-02"),
-				input.CurrDate,
-				indString.String(),
-				bestIndParams[input.Indicator])
+			// Add summary section
+			resultBuilder.WriteString("## Summary\n\n")
+			resultBuilder.WriteString(generateTechnicalSummary(allIndicators))
 
 			return &models.StockIndicatorOutput{
-				Result: resultStr,
+				Result: resultBuilder.String(),
 			}, nil
 		},
 	)
@@ -256,47 +290,162 @@ func getOfflineMarketDataForIndicator(ctx context.Context, cfg *config.Config, s
 	return getOnlineMarketDataForIndicator(ctx, cfg, symbol, int(endDate.Sub(startDate).Hours()/24)+30)
 }
 
-// calculateIndicator calculates the specified technical indicator
-func calculateIndicator(data []*models.MarketData, indicator string, startDate, endDate time.Time) ([]models.IndicatorValue, error) {
+// calculateAllIndicators calculates all technical indicators at once
+func calculateAllIndicators(data []*models.MarketData, startDate, endDate time.Time) map[string][]models.IndicatorValue {
 	if len(data) == 0 {
-		return nil, fmt.Errorf("no data available")
+		return make(map[string][]models.IndicatorValue)
 	}
 
-	// Sort data by date
+	// Sort data by date once
 	sort.Slice(data, func(i, j int) bool {
 		return data[i].Date < data[j].Date
 	})
 
-	switch indicator {
-	case "close_50_sma":
-		return calculateSMA(data, 50, startDate, endDate)
-	case "close_200_sma":
-		return calculateSMA(data, 200, startDate, endDate)
-	case "close_10_ema":
-		return calculateEMA(data, 10, startDate, endDate)
-	case "rsi":
-		return calculateRSI(data, 14, startDate, endDate)
-	case "macd":
-		return calculateMACD(data, startDate, endDate)
-	case "macds":
-		return calculateMACDSignal(data, startDate, endDate)
-	case "macdh":
-		return calculateMACDHistogram(data, startDate, endDate)
-	case "boll":
-		return calculateBollingerMiddle(data, 20, startDate, endDate)
-	case "boll_ub":
-		return calculateBollingerUpper(data, 20, 2, startDate, endDate)
-	case "boll_lb":
-		return calculateBollingerLower(data, 20, 2, startDate, endDate)
-	case "atr":
-		return calculateATR(data, 14, startDate, endDate)
-	case "vwma":
-		return calculateVWMA(data, 20, startDate, endDate)
-	case "mfi":
-		return calculateMFI(data, 14, startDate, endDate)
-	default:
-		return nil, fmt.Errorf("unsupported indicator: %s", indicator)
+	results := make(map[string][]models.IndicatorValue)
+
+	// Calculate all indicators
+	indicators := map[string]func() ([]models.IndicatorValue, error){
+		"close_10_ema":  func() ([]models.IndicatorValue, error) { return calculateEMA(data, 10, startDate, endDate) },
+		"close_50_sma":  func() ([]models.IndicatorValue, error) { return calculateSMA(data, 50, startDate, endDate) },
+		"close_200_sma": func() ([]models.IndicatorValue, error) { return calculateSMA(data, 200, startDate, endDate) },
+		"vwma":          func() ([]models.IndicatorValue, error) { return calculateVWMA(data, 20, startDate, endDate) },
+		"rsi":           func() ([]models.IndicatorValue, error) { return calculateRSI(data, 14, startDate, endDate) },
+		"macd":          func() ([]models.IndicatorValue, error) { return calculateMACD(data, startDate, endDate) },
+		"macds":         func() ([]models.IndicatorValue, error) { return calculateMACDSignal(data, startDate, endDate) },
+		"macdh":         func() ([]models.IndicatorValue, error) { return calculateMACDHistogram(data, startDate, endDate) },
+		"mfi":           func() ([]models.IndicatorValue, error) { return calculateMFI(data, 14, startDate, endDate) },
+		"boll":          func() ([]models.IndicatorValue, error) { return calculateBollingerMiddle(data, 20, startDate, endDate) },
+		"boll_ub": func() ([]models.IndicatorValue, error) {
+			return calculateBollingerUpper(data, 20, 2, startDate, endDate)
+		},
+		"boll_lb": func() ([]models.IndicatorValue, error) {
+			return calculateBollingerLower(data, 20, 2, startDate, endDate)
+		},
+		"atr": func() ([]models.IndicatorValue, error) { return calculateATR(data, 14, startDate, endDate) },
 	}
+
+	// Calculate all indicators
+	successCount := 0
+	totalCount := len(indicators)
+	
+	for name, calcFunc := range indicators {
+		if values, err := calcFunc(); err == nil {
+			results[name] = values
+			successCount++
+		} else {
+			log.Printf("Failed to calculate %s: %v", name, err)
+		}
+	}
+
+	log.Printf("Successfully calculated %d/%d indicators", successCount, totalCount)
+	return results
+}
+
+// generateTechnicalSummary generates a summary of technical analysis
+func generateTechnicalSummary(indicators map[string][]models.IndicatorValue) string {
+	var summary strings.Builder
+
+	// Get latest values for analysis
+	getLatestValue := func(indicator string) (float64, bool) {
+		if values, exists := indicators[indicator]; exists && len(values) > 0 {
+			return values[len(values)-1].Value, true
+		}
+		return 0, false
+	}
+
+	// Trend Analysis
+	summary.WriteString("**Trend Analysis:**\n")
+	if ema10, exists1 := getLatestValue("close_10_ema"); exists1 {
+		if sma50, exists2 := getLatestValue("close_50_sma"); exists2 {
+			if ema10 > sma50 {
+				summary.WriteString("- Short-term trend is BULLISH (10 EMA > 50 SMA)\n")
+			} else {
+				summary.WriteString("- Short-term trend is BEARISH (10 EMA < 50 SMA)\n")
+			}
+		}
+	}
+
+	if sma50, exists1 := getLatestValue("close_50_sma"); exists1 {
+		if sma200, exists2 := getLatestValue("close_200_sma"); exists2 {
+			if sma50 > sma200 {
+				summary.WriteString("- Long-term trend is BULLISH (50 SMA > 200 SMA)\n")
+			} else {
+				summary.WriteString("- Long-term trend is BEARISH (50 SMA < 200 SMA)\n")
+			}
+		}
+	}
+
+	summary.WriteString("\n")
+
+	// Momentum Analysis
+	summary.WriteString("**Momentum Analysis:**\n")
+	if rsi, exists := getLatestValue("rsi"); exists {
+		if rsi > 70 {
+			summary.WriteString(fmt.Sprintf("- RSI (%.2f) indicates OVERBOUGHT conditions\n", rsi))
+		} else if rsi < 30 {
+			summary.WriteString(fmt.Sprintf("- RSI (%.2f) indicates OVERSOLD conditions\n", rsi))
+		} else {
+			summary.WriteString(fmt.Sprintf("- RSI (%.2f) is in NEUTRAL range\n", rsi))
+		}
+	}
+
+	if mfi, exists := getLatestValue("mfi"); exists {
+		if mfi > 80 {
+			summary.WriteString(fmt.Sprintf("- MFI (%.2f) indicates OVERBOUGHT with strong selling pressure\n", mfi))
+		} else if mfi < 20 {
+			summary.WriteString(fmt.Sprintf("- MFI (%.2f) indicates OVERSOLD with strong buying pressure\n", mfi))
+		} else {
+			summary.WriteString(fmt.Sprintf("- MFI (%.2f) shows balanced money flow\n", mfi))
+		}
+	}
+
+	summary.WriteString("\n")
+
+	// Volatility Analysis
+	summary.WriteString("**Volatility Analysis:**\n")
+	if bollMiddle, exists1 := getLatestValue("boll"); exists1 {
+		if bollUpper, exists2 := getLatestValue("boll_ub"); exists2 {
+			if bollLower, exists3 := getLatestValue("boll_lb"); exists3 {
+				bandWidth := (bollUpper - bollLower) / bollMiddle * 100
+				summary.WriteString(fmt.Sprintf("- Bollinger Band width: %.2f%% ", bandWidth))
+				if bandWidth > 20 {
+					summary.WriteString("(HIGH volatility)\n")
+				} else if bandWidth < 10 {
+					summary.WriteString("(LOW volatility)\n")
+				} else {
+					summary.WriteString("(MODERATE volatility)\n")
+				}
+			}
+		}
+	}
+
+	if atr, exists := getLatestValue("atr"); exists {
+		summary.WriteString(fmt.Sprintf("- Average True Range: %.4f (daily volatility measure)\n", atr))
+	}
+
+	summary.WriteString("\n")
+
+	// MACD Analysis
+	summary.WriteString("**MACD Analysis:**\n")
+	if macd, exists1 := getLatestValue("macd"); exists1 {
+		if macdSignal, exists2 := getLatestValue("macds"); exists2 {
+			if macd > macdSignal {
+				summary.WriteString("- MACD line above signal line: BULLISH momentum\n")
+			} else {
+				summary.WriteString("- MACD line below signal line: BEARISH momentum\n")
+			}
+		}
+	}
+
+	if macdHist, exists := getLatestValue("macdh"); exists {
+		if macdHist > 0 {
+			summary.WriteString("- MACD Histogram positive: Increasing bullish momentum\n")
+		} else {
+			summary.WriteString("- MACD Histogram negative: Increasing bearish momentum\n")
+		}
+	}
+
+	return summary.String()
 }
 
 // calculateSMA calculates Simple Moving Average
@@ -450,9 +599,14 @@ func calculateMACD(data []*models.MarketData, startDate, endDate time.Time) ([]m
 
 // calculateMACDSignal calculates MACD Signal line
 func calculateMACDSignal(data []*models.MarketData, startDate, endDate time.Time) ([]models.IndicatorValue, error) {
-	macdValues, err := calculateMACD(data, time.Time{}, time.Time{}) // Get all MACD values
+	// Need more data for MACD calculation, so get all MACD values without date filtering
+	macdValues, err := calculateMACD(data, time.Time{}, time.Time{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to calculate MACD for signal: %v", err)
+	}
+
+	if len(macdValues) < 9 {
+		return nil, fmt.Errorf("insufficient MACD data for signal calculation: need at least 9 values, got %d", len(macdValues))
 	}
 
 	// Create temporary data for EMA calculation on MACD
@@ -466,11 +620,14 @@ func calculateMACDSignal(data []*models.MarketData, startDate, endDate time.Time
 
 	signalEMA, err := calculateEMAValues(macdData, 9)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to calculate EMA for MACD signal: %v", err)
 	}
 
 	var result []models.IndicatorValue
 	for i, signal := range signalEMA {
+		if i+8 >= len(macdData) {
+			break
+		}
 		currentDate, _ := time.Parse("2006-01-02", macdData[8+i].Date) // 9-1 offset
 		if !currentDate.Before(startDate) && !currentDate.After(endDate) {
 			result = append(result, models.IndicatorValue{
@@ -487,25 +644,35 @@ func calculateMACDSignal(data []*models.MarketData, startDate, endDate time.Time
 func calculateMACDHistogram(data []*models.MarketData, startDate, endDate time.Time) ([]models.IndicatorValue, error) {
 	macdValues, err := calculateMACD(data, time.Time{}, time.Time{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to calculate MACD for histogram: %v", err)
 	}
 
 	signalValues, err := calculateMACDSignal(data, time.Time{}, time.Time{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to calculate MACD signal for histogram: %v", err)
+	}
+
+	if len(macdValues) == 0 || len(signalValues) == 0 {
+		return nil, fmt.Errorf("insufficient data for MACD histogram: MACD=%d, Signal=%d", len(macdValues), len(signalValues))
+	}
+
+	// Create a map for signal values by date for easier lookup
+	signalMap := make(map[string]float64)
+	for _, sig := range signalValues {
+		signalMap[sig.Date] = sig.Value
 	}
 
 	var result []models.IndicatorValue
-	minLen := min(len(macdValues), len(signalValues))
-
-	for i := 0; i < minLen; i++ {
-		currentDate, _ := time.Parse("2006-01-02", macdValues[i].Date)
-		if !currentDate.Before(startDate) && !currentDate.After(endDate) {
-			histogram := macdValues[i].Value - signalValues[i].Value
-			result = append(result, models.IndicatorValue{
-				Date:  macdValues[i].Date,
-				Value: histogram,
-			})
+	for _, macdVal := range macdValues {
+		if signalVal, exists := signalMap[macdVal.Date]; exists {
+			currentDate, _ := time.Parse("2006-01-02", macdVal.Date)
+			if !currentDate.Before(startDate) && !currentDate.After(endDate) {
+				histogram := macdVal.Value - signalVal
+				result = append(result, models.IndicatorValue{
+					Date:  macdVal.Date,
+					Value: histogram,
+				})
+			}
 		}
 	}
 

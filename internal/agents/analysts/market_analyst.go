@@ -84,11 +84,13 @@ prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the t
 
 You have access to the following tools:
 - get_market_data: Get market data for a specific symbol and date range.
-- get_stock_stats_indicators_window: Get technical indicator analysis for a stock over a specified time window
+- get_stock_stats_indicators_window: Get comprehensive technical indicator analysis with ALL major indicators (SMA, EMA, RSI, MACD, Bollinger Bands, ATR, VWMA, MFI) calculated at once
 
 {system_message}
 
-For your reference, the current date is {current_date}. The company we want to look at is {ticker}
+For your reference, the current date is {current_date}. The company we want to look at is {ticker} .
+
+The output content should be in Chinese.
 `
 		systemPrompt, _ := utils.LoadPrompt("analysts/market_analyst")
 		// 创建prompt模板
