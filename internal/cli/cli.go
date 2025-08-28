@@ -8,7 +8,7 @@ import (
 // Run starts the CLI application
 func Run() {
 	rootCmd := NewRootCmd()
-	
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

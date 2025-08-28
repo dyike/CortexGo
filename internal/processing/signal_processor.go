@@ -18,12 +18,12 @@ type SignalProcessor struct {
 
 // TradingSignal represents a processed trading signal
 type TradingSignal struct {
-	Action      string  `json:"action"`       // BUY, SELL, HOLD
-	Confidence  float64 `json:"confidence"`   // 0.0 to 1.0
-	Reasoning   string  `json:"reasoning"`    // Extracted reasoning
-	EntryPrice  float64 `json:"entry_price"`  // Suggested entry price
-	StopLoss    float64 `json:"stop_loss"`    // Stop loss level
-	TakeProfit  float64 `json:"take_profit"`  // Take profit level
+	Action       string  `json:"action"`        // BUY, SELL, HOLD
+	Confidence   float64 `json:"confidence"`    // 0.0 to 1.0
+	Reasoning    string  `json:"reasoning"`     // Extracted reasoning
+	EntryPrice   float64 `json:"entry_price"`   // Suggested entry price
+	StopLoss     float64 `json:"stop_loss"`     // Stop loss level
+	TakeProfit   float64 `json:"take_profit"`   // Take profit level
 	PositionSize float64 `json:"position_size"` // Suggested position size
 }
 
@@ -85,7 +85,7 @@ func (sp *SignalProcessor) ProcessTradingDecision(ctx context.Context, state *mo
 // extractAction determines the primary trading action from text
 func (sp *SignalProcessor) extractAction(text string) string {
 	text = strings.ToLower(text)
-	
+
 	buyScore := 0
 	sellScore := 0
 	holdScore := 0
@@ -94,11 +94,11 @@ func (sp *SignalProcessor) extractAction(text string) string {
 	for _, pattern := range sp.buyPatterns {
 		buyScore += len(pattern.FindAllString(text, -1))
 	}
-	
+
 	for _, pattern := range sp.sellPatterns {
 		sellScore += len(pattern.FindAllString(text, -1))
 	}
-	
+
 	for _, pattern := range sp.holdPatterns {
 		holdScore += len(pattern.FindAllString(text, -1))
 	}
@@ -109,7 +109,7 @@ func (sp *SignalProcessor) extractAction(text string) string {
 	} else if sellScore > buyScore && sellScore > holdScore {
 		return "SELL"
 	}
-	
+
 	return "HOLD"
 }
 
@@ -117,7 +117,7 @@ func (sp *SignalProcessor) extractAction(text string) string {
 func (sp *SignalProcessor) calculateConfidence(text string, action string) float64 {
 	text = strings.ToLower(text)
 	totalWords := len(strings.Fields(text))
-	
+
 	if totalWords == 0 {
 		return 0.5
 	}
@@ -166,14 +166,14 @@ func (sp *SignalProcessor) extractReasoning(text string, action string) string {
 		if len(sentence) < 10 {
 			continue
 		}
-		
+
 		for _, word := range words {
 			if strings.Contains(strings.ToLower(sentence), word) {
 				relevantSentences = append(relevantSentences, sentence)
 				break
 			}
 		}
-		
+
 		if len(relevantSentences) >= 3 {
 			break
 		}
@@ -214,7 +214,7 @@ func (sp *SignalProcessor) extractPrice(text string, priceType string) float64 {
 func (sp *SignalProcessor) extractPositionSize(text string) float64 {
 	pattern := regexp.MustCompile(`(?i)position[^0-9]*(\d+\.?\d*)`)
 	matches := pattern.FindStringSubmatch(text)
-	
+
 	if len(matches) > 1 {
 		var size float64
 		if json.Unmarshal([]byte(matches[1]), &size) == nil {

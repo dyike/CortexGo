@@ -21,7 +21,7 @@ type YahooFinanceClient struct {
 func NewYahooFinanceClient(config *Config) *YahooFinanceClient {
 	cacheDir := filepath.Join(config.DataCacheDir, "yahoo_finance")
 	cache := NewCacheManager(cacheDir, 24*time.Hour, config.CacheEnabled) // 24 hour cache
-	
+
 	return &YahooFinanceClient{
 		cache: cache,
 	}
@@ -32,15 +32,15 @@ func (yf *YahooFinanceClient) GetQuote(symbol string) (*MarketData, error) {
 	if err := ValidateSymbol(symbol); err != nil {
 		return nil, err
 	}
-	
+
 	symbol = NormalizeSymbol(symbol)
-	
+
 	// Check cache first
 	var cached MarketData
 	if yf.cache.Get("yahoo", "quote", symbol, &cached) {
 		return &cached, nil
 	}
-	
+
 	// Fetch from Yahoo Finance
 	var result *MarketData
 	err := WithRetry(DefaultRetryConfig(), func() error {
@@ -48,7 +48,7 @@ func (yf *YahooFinanceClient) GetQuote(symbol string) (*MarketData, error) {
 		if err != nil {
 			return fmt.Errorf("failed to get quote for %s: %w", symbol, err)
 		}
-		
+
 		result = &MarketData{
 			Symbol:    symbol,
 			Date:      time.Now(),
@@ -60,17 +60,17 @@ func (yf *YahooFinanceClient) GetQuote(symbol string) (*MarketData, error) {
 			Volume:    int64(q.RegularMarketVolume),
 			Timestamp: time.Now(),
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Cache the result
 	yf.cache.Set("yahoo", "quote", symbol, result)
-	
+
 	return result, nil
 }
 
@@ -79,22 +79,22 @@ func (yf *YahooFinanceClient) GetHistoricalData(symbol string, start, end time.T
 	if err := ValidateSymbol(symbol); err != nil {
 		return nil, err
 	}
-	
+
 	symbol = NormalizeSymbol(symbol)
-	
+
 	// Create cache key with date range
 	cacheKey := map[string]interface{}{
 		"symbol": symbol,
 		"start":  start.Format("2006-01-02"),
 		"end":    end.Format("2006-01-02"),
 	}
-	
+
 	// Check cache first
 	var cached []*MarketData
 	if yf.cache.Get("yahoo", "historical", cacheKey, &cached) {
 		return cached, nil
 	}
-	
+
 	// Fetch from Yahoo Finance
 	var result []*MarketData
 	err := WithRetry(DefaultRetryConfig(), func() error {
@@ -104,13 +104,13 @@ func (yf *YahooFinanceClient) GetHistoricalData(symbol string, start, end time.T
 			End:      datetime.New(&end),
 			Interval: datetime.OneDay,
 		}
-		
+
 		iter := chart.Get(params)
-		
+
 		result = make([]*MarketData, 0)
 		for iter.Next() {
 			bar := iter.Bar()
-			
+
 			marketData := &MarketData{
 				Symbol:    symbol,
 				Date:      time.Unix(int64(bar.Timestamp), 0),
@@ -122,27 +122,27 @@ func (yf *YahooFinanceClient) GetHistoricalData(symbol string, start, end time.T
 				Volume:    int64(bar.Volume),
 				Timestamp: time.Now(),
 			}
-			
+
 			result = append(result, marketData)
 		}
-		
+
 		if err := iter.Err(); err != nil {
 			return fmt.Errorf("failed to get historical data for %s: %w", symbol, err)
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Cache the result
 	yf.cache.Set("yahoo", "historical", cacheKey, result)
-	
+
 	// Note: File saving would need config passed from caller
 	// This is handled at the interface level
-	
+
 	return result, nil
 }
 
@@ -150,7 +150,7 @@ func (yf *YahooFinanceClient) GetHistoricalData(symbol string, start, end time.T
 func (yf *YahooFinanceClient) GetHistoricalDataWindow(symbol string, days int) ([]*MarketData, error) {
 	end := time.Now()
 	start := end.AddDate(0, 0, -days)
-	
+
 	return yf.GetHistoricalData(symbol, start, end)
 }
 
@@ -159,20 +159,20 @@ func (yf *YahooFinanceClient) GetOfflineData(symbol string, start, end time.Time
 	if err := ValidateSymbol(symbol); err != nil {
 		return nil, err
 	}
-	
+
 	symbol = NormalizeSymbol(symbol)
-	
+
 	// Try to load from file
-	filePath := filepath.Join(config.DataDir, "market_data", "price_data", 
-		fmt.Sprintf("%s_%s_%s.json", symbol, 
+	filePath := filepath.Join(config.DataDir, "market_data", "price_data",
+		fmt.Sprintf("%s_%s_%s.json", symbol,
 			start.Format("2006-01-02"), end.Format("2006-01-02")))
-	
+
 	var result []*MarketData
 	if err := LoadDataFromFile(filePath, &result); err != nil {
-		return nil, fmt.Errorf("offline data not available for %s (%s): %w", 
+		return nil, fmt.Errorf("offline data not available for %s (%s): %w",
 			symbol, FormatDateRange(start, end), err)
 	}
-	
+
 	return result, nil
 }
 
@@ -182,7 +182,7 @@ func (yf *YahooFinanceClient) SearchSymbols(query string) ([]string, error) {
 	if len(query) == 0 {
 		return nil, fmt.Errorf("search query cannot be empty")
 	}
-	
+
 	// This is a basic implementation - in production you might want to use
 	// a more comprehensive symbol search API
 	commonSymbols := []string{
@@ -191,14 +191,14 @@ func (yf *YahooFinanceClient) SearchSymbols(query string) ([]string, error) {
 		"JPM", "BAC", "WFC", "C", "GS", "MS", "BRK.B", "JNJ", "PFE",
 		"KO", "PEP", "WMT", "HD", "NKE", "MCD", "SBUX", "UNH", "CVX",
 	}
-	
+
 	var matches []string
 	for _, symbol := range commonSymbols {
 		if strings.Contains(symbol, query) {
 			matches = append(matches, symbol)
 		}
 	}
-	
+
 	return matches, nil
 }
 
@@ -207,21 +207,21 @@ func (yf *YahooFinanceClient) GetCompanyInfo(symbol string) (map[string]interfac
 	if err := ValidateSymbol(symbol); err != nil {
 		return nil, err
 	}
-	
+
 	symbol = NormalizeSymbol(symbol)
-	
+
 	// Check cache first
 	var cached map[string]interface{}
 	if yf.cache.Get("yahoo", "company_info", symbol, &cached) {
 		return cached, nil
 	}
-	
+
 	// Fetch quote to get basic info
 	q, err := quote.Get(symbol)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get company info for %s: %w", symbol, err)
 	}
-	
+
 	info := map[string]interface{}{
 		"symbol":               symbol,
 		"company_name":         q.ShortName,
@@ -234,9 +234,9 @@ func (yf *YahooFinanceClient) GetCompanyInfo(symbol string) (map[string]interfac
 		"is_tradeable":         q.IsTradeable,
 		"fetched_at":           time.Now(),
 	}
-	
+
 	// Cache the result
 	yf.cache.Set("yahoo", "company_info", symbol, info)
-	
+
 	return info, nil
 }

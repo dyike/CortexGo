@@ -163,4 +163,3 @@ func NewRiskManagerNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 	return g
 }
-

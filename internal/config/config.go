@@ -36,12 +36,12 @@ type Config struct {
 	RedditSecret    string `json:"reddit_secret"`
 	RedditUserAgent string `json:"reddit_user_agent"`
 	CacheEnabled    bool   `json:"cache_enabled"`
-	
+
 	// Longport API Configuration
-	LongportAppKey     string `json:"longport_app_key"`
-	LongportAppSecret  string `json:"longport_app_secret"`
+	LongportAppKey      string `json:"longport_app_key"`
+	LongportAppSecret   string `json:"longport_app_secret"`
 	LongportAccessToken string `json:"longport_access_token"`
-	
+
 	// AI Model API Keys
 	DeepSeekAPIKey string `json:"deepseek_api_key"`
 }
@@ -170,7 +170,7 @@ func (c *Config) loadFromEnv() {
 			c.EinoDebugPort = port
 		}
 	}
-	
+
 	if val := os.Getenv("LONGPORT_APP_KEY"); val != "" {
 		c.LongportAppKey = val
 	}
@@ -180,7 +180,7 @@ func (c *Config) loadFromEnv() {
 	if val := os.Getenv("LONGPORT_ACCESS_TOKEN"); val != "" {
 		c.LongportAccessToken = val
 	}
-	
+
 	if val := os.Getenv("DEEPSEEK_API_KEY"); val != "" {
 		c.DeepSeekAPIKey = val
 	}
@@ -202,7 +202,7 @@ func (c *Config) EnsureDirectories() error {
 		"news_data",
 		"fundamental_data",
 	}
-	
+
 	for _, subdir := range dataflowsSubdirs {
 		fullPath := filepath.Join(c.DataDir, subdir)
 		if err := os.MkdirAll(fullPath, 0755); err != nil {

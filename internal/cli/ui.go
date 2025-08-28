@@ -13,70 +13,70 @@ import (
 var (
 	// Base styles
 	titleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#7C3AED")).
-		Background(lipgloss.Color("#1F2937")).
-		Padding(0, 1).
-		MarginBottom(1)
+			Bold(true).
+			Foreground(lipgloss.Color("#7C3AED")).
+			Background(lipgloss.Color("#1F2937")).
+			Padding(0, 1).
+			MarginBottom(1)
 
 	headerStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#3B82F6")).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#3B82F6")).
-		Padding(1, 2).
-		Width(80)
+			Bold(true).
+			Foreground(lipgloss.Color("#3B82F6")).
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#3B82F6")).
+			Padding(1, 2).
+			Width(80)
 
 	progressStyle = lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#10B981")).
-		Padding(1, 2).
-		Width(80).
-		Height(12)
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#10B981")).
+			Padding(1, 2).
+			Width(80).
+			Height(12)
 
 	messagesStyle = lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#F59E0B")).
-		Padding(1, 2).
-		Width(80).
-		Height(15)
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#F59E0B")).
+			Padding(1, 2).
+			Width(80).
+			Height(15)
 
 	reportsStyle = lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#EF4444")).
-		Padding(1, 2).
-		Width(80).
-		Height(20)
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#EF4444")).
+			Padding(1, 2).
+			Width(80).
+			Height(20)
 
 	// Status styles
 	pendingStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#6B7280"))
+			Foreground(lipgloss.Color("#6B7280"))
 
 	inProgressStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#F59E0B")).
-		Bold(true)
+			Foreground(lipgloss.Color("#F59E0B")).
+			Bold(true)
 
 	completedStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#10B981")).
-		Bold(true)
+			Foreground(lipgloss.Color("#10B981")).
+			Bold(true)
 
 	errorStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#EF4444")).
-		Bold(true)
+			Foreground(lipgloss.Color("#EF4444")).
+			Bold(true)
 
 	// Message type styles
 	toolCallStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#8B5CF6"))
+			Foreground(lipgloss.Color("#8B5CF6"))
 
 	reasoningStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#3B82F6"))
+			Foreground(lipgloss.Color("#3B82F6"))
 
 	reportStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#10B981")).
-		Bold(true)
+			Foreground(lipgloss.Color("#10B981")).
+			Bold(true)
 
 	logErrorStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#EF4444"))
+			Foreground(lipgloss.Color("#EF4444"))
 )
 
 // DisplayWelcomeBanner shows the welcome banner
@@ -123,17 +123,17 @@ func DisplayAnalysisHeader(session *AnalysisSession) {
 		session.Selections.AnalysisDate.Format("2006-01-02"),
 		session.Stats.CurrentPhase,
 	)
-	
+
 	fmt.Println(headerStyle.Render(header))
 }
 
 // DisplayProgressPanel shows the agent progress panel
 func DisplayProgressPanel(progress *AnalysisProgress, stats *AnalysisStats) {
 	var content strings.Builder
-	
+
 	// Title
 	content.WriteString("🔄 Agent Progress\n\n")
-	
+
 	// Analyst Team
 	content.WriteString("👥 Analyst Team:\n")
 	content.WriteString(formatAgentStatus("  Market Analyst", progress.MarketAnalyst))
@@ -141,21 +141,21 @@ func DisplayProgressPanel(progress *AnalysisProgress, stats *AnalysisStats) {
 	content.WriteString(formatAgentStatus("  News Analyst", progress.NewsAnalyst))
 	content.WriteString(formatAgentStatus("  Fundamentals Analyst", progress.FundamentalsAnalyst))
 	content.WriteString("\n")
-	
+
 	// Research Team
 	content.WriteString("🔬 Research Team:\n")
 	content.WriteString(formatAgentStatus("  Bull Researcher", progress.BullResearcher))
 	content.WriteString(formatAgentStatus("  Bear Researcher", progress.BearResearcher))
 	content.WriteString(formatAgentStatus("  Research Manager", progress.ResearchManager))
 	content.WriteString("\n")
-	
+
 	// Trading & Risk Teams
 	content.WriteString("💼 Trading Team:\n")
 	content.WriteString(formatAgentStatus("  Trader", progress.Trader))
 	content.WriteString("\n")
 	content.WriteString("⚖️  Risk Management:\n")
 	content.WriteString(formatAgentStatus("  Risk Manager", progress.RiskManager))
-	
+
 	// Statistics
 	content.WriteString(fmt.Sprintf("\n📊 Stats: %d/%d completed | ⚡ %d tool calls | 🧠 %d LLM calls | 📝 %d reports",
 		progress.GetCompletedCount(),
@@ -164,35 +164,35 @@ func DisplayProgressPanel(progress *AnalysisProgress, stats *AnalysisStats) {
 		stats.LLMCallsCount,
 		stats.ReportsGenerated,
 	))
-	
+
 	fmt.Println(progressStyle.Render(content.String()))
 }
 
 // DisplayMessagesPanel shows the messages panel
 func DisplayMessagesPanel(messages []LogMessage, maxMessages int) {
 	var content strings.Builder
-	
+
 	content.WriteString("💬 Activity Log\n\n")
-	
+
 	if len(messages) == 0 {
 		content.WriteString("No messages yet...")
 		fmt.Println(messagesStyle.Render(content.String()))
 		return
 	}
-	
+
 	// Show only the last maxMessages
 	start := 0
 	if len(messages) > maxMessages {
 		start = len(messages) - maxMessages
 	}
-	
+
 	for i := start; i < len(messages); i++ {
 		msg := messages[i]
 		timestamp := msg.Timestamp.Format("15:04:05")
-		
+
 		var style lipgloss.Style
 		var icon string
-		
+
 		switch msg.Type {
 		case "tool_call":
 			style = toolCallStyle
@@ -210,40 +210,40 @@ func DisplayMessagesPanel(messages []LogMessage, maxMessages int) {
 			style = lipgloss.NewStyle()
 			icon = "ℹ️"
 		}
-		
+
 		line := fmt.Sprintf("[%s] %s %s: %s",
 			timestamp,
 			icon,
 			msg.Agent,
 			truncateString(msg.Content, 60),
 		)
-		
+
 		content.WriteString(style.Render(line) + "\n")
 	}
-	
+
 	fmt.Println(messagesStyle.Render(content.String()))
 }
 
 // DisplayReportsPanel shows the reports panel
 func DisplayReportsPanel(reports []ReportSection) {
 	var content strings.Builder
-	
+
 	content.WriteString("📄 Generated Reports\n\n")
-	
+
 	if len(reports) == 0 {
 		content.WriteString("No reports generated yet...")
 		fmt.Println(reportsStyle.Render(content.String()))
 		return
 	}
-	
+
 	// Group reports by team
 	teams := map[string][]ReportSection{
 		"Analysis": {},
 		"Research": {},
-		"Trading": {},
-		"Risk": {},
+		"Trading":  {},
+		"Risk":     {},
 	}
-	
+
 	for _, report := range reports {
 		switch {
 		case strings.Contains(strings.ToLower(report.Agent), "analyst"):
@@ -258,7 +258,7 @@ func DisplayReportsPanel(reports []ReportSection) {
 			teams["Analysis"] = append(teams["Analysis"], report)
 		}
 	}
-	
+
 	// Display each team's reports
 	for teamName, teamReports := range teams {
 		if len(teamReports) > 0 {
@@ -272,7 +272,7 @@ func DisplayReportsPanel(reports []ReportSection) {
 			content.WriteString("\n")
 		}
 	}
-	
+
 	fmt.Println(reportsStyle.Render(content.String()))
 }
 
@@ -280,7 +280,7 @@ func DisplayReportsPanel(reports []ReportSection) {
 func DisplayCompleteReport(session *AnalysisSession) {
 	fmt.Println()
 	fmt.Println(titleStyle.Render("🎉 ANALYSIS COMPLETE! 🎉"))
-	
+
 	summary := fmt.Sprintf(`
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           📊 ANALYSIS SUMMARY                               │
@@ -305,9 +305,9 @@ func DisplayCompleteReport(session *AnalysisSession) {
 		session.Stats.ReportsGenerated,
 		session.ResultsDir,
 	)
-	
+
 	fmt.Println(summary)
-	
+
 	if len(session.Reports) > 0 {
 		fmt.Println("📋 Generated Reports:")
 		for _, report := range session.Reports {
@@ -317,7 +317,7 @@ func DisplayCompleteReport(session *AnalysisSession) {
 			}
 		}
 	}
-	
+
 	fmt.Println()
 }
 
@@ -344,7 +344,7 @@ func DisplaySuccess(message string) {
 func formatAgentStatus(name string, status AgentStatus) string {
 	var style lipgloss.Style
 	var icon string
-	
+
 	switch status {
 	case StatusPending:
 		style = pendingStyle
@@ -362,7 +362,7 @@ func formatAgentStatus(name string, status AgentStatus) string {
 		style = pendingStyle
 		icon = "❓"
 	}
-	
+
 	return fmt.Sprintf("%s %s %s\n", icon, style.Render(name), style.Render(string(status)))
 }
 
@@ -379,16 +379,16 @@ func UpdateDisplay(session *AnalysisSession) {
 	if os.Getenv("CORTEXGO_NO_CLEAR") == "" {
 		ClearScreen()
 	}
-	
+
 	// Display header
 	DisplayAnalysisHeader(session)
-	
+
 	// Display progress panel
 	DisplayProgressPanel(&session.Progress, &session.Stats)
-	
+
 	// Display messages panel (show last 10 messages)
 	DisplayMessagesPanel(session.Messages, 10)
-	
+
 	// Display reports panel
 	DisplayReportsPanel(session.Reports)
 }

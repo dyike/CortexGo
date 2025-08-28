@@ -21,7 +21,7 @@ type Analyzer struct {
 func NewAnalyzer(cfg *config.Config) *Analyzer {
 	// Initialize trading graph with debug mode from config
 	tradingGraph := graph.NewTradingAgentsGraph(cfg.Debug, cfg)
-	
+
 	return &Analyzer{
 		config:         cfg,
 		sessionManager: NewSessionManager(cfg),
@@ -36,23 +36,23 @@ func (a *Analyzer) RunAnalysis(ctx context.Context, selections UserSelections) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
-	
+
 	// Initialize dataflows with config
 	if err := dataflows.Initialize(a.config); err != nil {
 		return nil, fmt.Errorf("failed to initialize dataflows: %w", err)
 	}
-	
+
 	// Update configuration based on selections
 	a.updateConfigFromSelections(selections)
-	
+
 	// Trading graph is already initialized in NewAnalyzer
-	
+
 	// Run analysis phases
 	if err := a.runAnalysisPhases(ctx, session); err != nil {
 		session.AddLogMessage("System", "error", "error", fmt.Sprintf("Analysis failed: %s", err.Error()))
 		return session, fmt.Errorf("analysis failed: %w", err)
 	}
-	
+
 	// Generate final report
 	finalReportPath, err := session.SaveFinalReport()
 	if err != nil {
@@ -60,12 +60,12 @@ func (a *Analyzer) RunAnalysis(ctx context.Context, selections UserSelections) (
 	} else {
 		session.AddReport("System", "Final Analysis Report", "Complete analysis summary", finalReportPath)
 	}
-	
+
 	// Save final session state
 	if err := a.sessionManager.SaveSession(session); err != nil {
 		session.AddLogMessage("System", "warn", "warning", fmt.Sprintf("Failed to save session: %s", err.Error()))
 	}
-	
+
 	return session, nil
 }
 
@@ -76,25 +76,25 @@ func (a *Analyzer) runAnalysisPhases(ctx context.Context, session *AnalysisSessi
 	if err := a.runAnalystPhase(ctx, session); err != nil {
 		return fmt.Errorf("analyst phase failed: %w", err)
 	}
-	
+
 	// Phase 2: Research Team
 	session.UpdateCurrentPhase("Research Team Analysis")
 	if err := a.runResearchPhase(ctx, session); err != nil {
 		return fmt.Errorf("research phase failed: %w", err)
 	}
-	
+
 	// Phase 3: Trading Team
 	session.UpdateCurrentPhase("Trading Strategy Development")
 	if err := a.runTradingPhase(ctx, session); err != nil {
 		return fmt.Errorf("trading phase failed: %w", err)
 	}
-	
+
 	// Phase 4: Risk Management
 	session.UpdateCurrentPhase("Risk Management Analysis")
 	if err := a.runRiskPhase(ctx, session); err != nil {
 		return fmt.Errorf("risk phase failed: %w", err)
 	}
-	
+
 	session.UpdateCurrentPhase("Complete")
 	return nil
 }
@@ -102,37 +102,37 @@ func (a *Analyzer) runAnalysisPhases(ctx context.Context, session *AnalysisSessi
 // runAnalystPhase runs the analyst team phase
 func (a *Analyzer) runAnalystPhase(ctx context.Context, session *AnalysisSession) error {
 	selectedAnalysts := session.Selections.Analysts
-	
+
 	// Simulate analyst work (in real implementation, this would call the actual agents)
 	for _, analyst := range selectedAnalysts {
 		agentName := string(analyst)
 		session.UpdateAgentStatus(agentName, StatusInProgress)
-		
+
 		// Simulate work with progress updates
 		session.AddLogMessage(agentName, "info", "tool_call", "Fetching market data")
 		time.Sleep(500 * time.Millisecond) // Simulate processing time
-		
+
 		session.AddLogMessage(agentName, "info", "reasoning", "Analyzing market conditions")
 		time.Sleep(500 * time.Millisecond)
-		
+
 		// Generate report
 		reportTitle := fmt.Sprintf("%s Analysis Report", analyst.GetDisplayName())
 		reportContent := a.generateMockReport(analyst, session.Selections.Ticker)
-		
+
 		filePath, err := session.SaveReportToFile(agentName, reportTitle, reportContent)
 		if err != nil {
 			session.AddLogMessage(agentName, "error", "error", fmt.Sprintf("Failed to save report: %s", err.Error()))
 			session.UpdateAgentStatus(agentName, StatusError)
 			continue
 		}
-		
+
 		session.AddReport(agentName, reportTitle, reportContent, filePath)
 		session.UpdateAgentStatus(agentName, StatusCompleted)
-		
+
 		// Update display
 		UpdateDisplay(session)
 	}
-	
+
 	return nil
 }
 
@@ -142,35 +142,35 @@ func (a *Analyzer) runResearchPhase(ctx context.Context, session *AnalysisSessio
 	session.UpdateAgentStatus("bull_researcher", StatusInProgress)
 	session.AddLogMessage("bull_researcher", "info", "reasoning", "Building bullish investment case")
 	time.Sleep(1 * time.Second)
-	
+
 	reportContent := a.generateMockBullReport(session.Selections.Ticker)
 	filePath, _ := session.SaveReportToFile("bull_researcher", "Bullish Investment Case", reportContent)
 	session.AddReport("bull_researcher", "Bullish Investment Case", reportContent, filePath)
 	session.UpdateAgentStatus("bull_researcher", StatusCompleted)
 	UpdateDisplay(session)
-	
+
 	// Bear Researcher
 	session.UpdateAgentStatus("bear_researcher", StatusInProgress)
 	session.AddLogMessage("bear_researcher", "info", "reasoning", "Building bearish investment case")
 	time.Sleep(1 * time.Second)
-	
+
 	reportContent = a.generateMockBearReport(session.Selections.Ticker)
 	filePath, _ = session.SaveReportToFile("bear_researcher", "Bearish Investment Case", reportContent)
 	session.AddReport("bear_researcher", "Bearish Investment Case", reportContent, filePath)
 	session.UpdateAgentStatus("bear_researcher", StatusCompleted)
 	UpdateDisplay(session)
-	
+
 	// Research Manager
 	session.UpdateAgentStatus("research_manager", StatusInProgress)
 	session.AddLogMessage("research_manager", "info", "reasoning", "Synthesizing research findings")
 	time.Sleep(1 * time.Second)
-	
+
 	reportContent = a.generateMockResearchDecision(session.Selections.Ticker)
 	filePath, _ = session.SaveReportToFile("research_manager", "Research Decision", reportContent)
 	session.AddReport("research_manager", "Research Decision", reportContent, filePath)
 	session.UpdateAgentStatus("research_manager", StatusCompleted)
 	UpdateDisplay(session)
-	
+
 	return nil
 }
 
@@ -179,16 +179,16 @@ func (a *Analyzer) runTradingPhase(ctx context.Context, session *AnalysisSession
 	session.UpdateAgentStatus("trader", StatusInProgress)
 	session.AddLogMessage("trader", "info", "tool_call", "Analyzing trading opportunities")
 	time.Sleep(1 * time.Second)
-	
+
 	session.AddLogMessage("trader", "info", "reasoning", "Developing trading strategy")
 	time.Sleep(1 * time.Second)
-	
+
 	reportContent := a.generateMockTradingPlan(session.Selections.Ticker)
 	filePath, _ := session.SaveReportToFile("trader", "Trading Strategy", reportContent)
 	session.AddReport("trader", "Trading Strategy", reportContent, filePath)
 	session.UpdateAgentStatus("trader", StatusCompleted)
 	UpdateDisplay(session)
-	
+
 	return nil
 }
 
@@ -196,27 +196,27 @@ func (a *Analyzer) runTradingPhase(ctx context.Context, session *AnalysisSession
 func (a *Analyzer) runRiskPhase(ctx context.Context, session *AnalysisSession) error {
 	// Risk analysts work in parallel
 	riskAnalysts := []string{"risky_analyst", "safe_analyst", "neutral_analyst"}
-	
+
 	for _, analyst := range riskAnalysts {
 		session.UpdateAgentStatus(analyst, StatusInProgress)
 		session.AddLogMessage(analyst, "info", "reasoning", "Evaluating risk factors")
 		time.Sleep(800 * time.Millisecond)
-		
+
 		session.UpdateAgentStatus(analyst, StatusCompleted)
 		UpdateDisplay(session)
 	}
-	
+
 	// Risk Manager makes final decision
 	session.UpdateAgentStatus("risk_manager", StatusInProgress)
 	session.AddLogMessage("risk_manager", "info", "reasoning", "Making final risk assessment")
 	time.Sleep(1 * time.Second)
-	
+
 	reportContent := a.generateMockRiskDecision(session.Selections.Ticker)
 	filePath, _ := session.SaveReportToFile("risk_manager", "Final Risk Decision", reportContent)
 	session.AddReport("risk_manager", "Final Risk Decision", reportContent, filePath)
 	session.UpdateAgentStatus("risk_manager", StatusCompleted)
 	UpdateDisplay(session)
-	
+
 	return nil
 }
 
@@ -226,7 +226,7 @@ func (a *Analyzer) updateConfigFromSelections(selections UserSelections) {
 	rounds := selections.ResearchDepth.GetResearchRounds()
 	a.config.MaxDebateRounds = rounds
 	a.config.MaxRiskDiscussRounds = rounds
-	
+
 	// Update LLM settings
 	a.config.LLMProvider = string(selections.LLMProvider)
 	a.config.QuickThinkLLM = selections.QuickModel

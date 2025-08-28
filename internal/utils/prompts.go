@@ -33,4 +33,3 @@ func LoadPromptWithContext(path string, context map[string]string) (string, erro
 
 	return content, nil
 }
-

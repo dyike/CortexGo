@@ -38,7 +38,7 @@ func bullResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 		} else {
 			state.Goto = consts.BearResearcher
 		}
-		
+
 		return nil
 	})
 	return output, nil

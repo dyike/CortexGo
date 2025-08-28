@@ -31,12 +31,12 @@ func (dfi *DataFlowInterface) GetYFinData(symbol string, start, end time.Time) (
 	if data, err := dfi.yahooFinance.GetOfflineData(symbol, start, end, dfi.config); err == nil {
 		return data, nil
 	}
-	
+
 	// If not available offline and online tools are enabled, fetch online
 	if dfi.config.OnlineTools {
 		return dfi.yahooFinance.GetHistoricalData(symbol, start, end)
 	}
-	
+
 	return nil, fmt.Errorf("offline data not available for %s and online tools disabled", symbol)
 }
 
@@ -45,7 +45,7 @@ func (dfi *DataFlowInterface) GetYFinDataOnline(symbol string) (*MarketData, err
 	if !dfi.config.OnlineTools {
 		return nil, fmt.Errorf("online tools are disabled")
 	}
-	
+
 	return dfi.yahooFinance.GetQuote(symbol)
 }
 
@@ -57,7 +57,7 @@ func (dfi *DataFlowInterface) GetYFinDataWindow(symbol string, days int) ([]*Mar
 		start := end.AddDate(0, 0, -days)
 		return dfi.yahooFinance.GetOfflineData(symbol, start, end, dfi.config)
 	}
-	
+
 	return dfi.yahooFinance.GetHistoricalDataWindow(symbol, days)
 }
 
@@ -66,7 +66,7 @@ func (dfi *DataFlowInterface) GetCompanyInfo(symbol string) (map[string]interfac
 	if !dfi.config.OnlineTools {
 		return nil, fmt.Errorf("online tools are disabled")
 	}
-	
+
 	return dfi.yahooFinance.GetCompanyInfo(symbol)
 }
 
@@ -77,7 +77,7 @@ func (dfi *DataFlowInterface) GetFinnhubNews(symbol string, from, to time.Time) 
 	if !dfi.config.OnlineTools {
 		return nil, fmt.Errorf("online tools are disabled")
 	}
-	
+
 	return dfi.finnhub.GetCompanyNews(symbol, from, to, dfi.config)
 }
 
@@ -86,7 +86,7 @@ func (dfi *DataFlowInterface) GetFinnhubGeneralNews(category string) ([]*NewsArt
 	if !dfi.config.OnlineTools {
 		return nil, fmt.Errorf("online tools are disabled")
 	}
-	
+
 	return dfi.finnhub.GetGeneralNews(category)
 }
 
@@ -95,14 +95,14 @@ func (dfi *DataFlowInterface) GetGoogleNews(query string, startDate, endDate tim
 	if !dfi.config.OnlineTools {
 		return nil, fmt.Errorf("online tools are disabled")
 	}
-	
+
 	params := GoogleNewsParams{
 		Query:      query,
 		StartDate:  startDate,
 		EndDate:    endDate,
 		MaxResults: maxResults,
 	}
-	
+
 	return dfi.newsScraper.GetGoogleNews(params, dfi.config)
 }
 
@@ -111,7 +111,7 @@ func (dfi *DataFlowInterface) GetGlobalNews() ([]*NewsArticle, error) {
 	if !dfi.config.OnlineTools {
 		return nil, fmt.Errorf("online tools are disabled")
 	}
-	
+
 	return dfi.finnhub.GetGeneralNews("general")
 }
 
@@ -122,7 +122,7 @@ func (dfi *DataFlowInterface) GetFinnhubCompanyInsiderSentiment(symbol string, f
 	if !dfi.config.OnlineTools {
 		return nil, fmt.Errorf("online tools are disabled")
 	}
-	
+
 	return dfi.finnhub.GetInsiderSentiment(symbol, from, to)
 }
 
@@ -131,7 +131,7 @@ func (dfi *DataFlowInterface) GetFinnhubCompanyInsiderTransactions(symbol string
 	if !dfi.config.OnlineTools {
 		return nil, fmt.Errorf("online tools are disabled")
 	}
-	
+
 	return dfi.finnhub.GetInsiderTransactions(symbol, from, to)
 }
 
@@ -142,7 +142,7 @@ func (dfi *DataFlowInterface) GetNewsFromURL(url string) (*NewsArticle, error) {
 	if !dfi.config.OnlineTools {
 		return nil, fmt.Errorf("online tools are disabled")
 	}
-	
+
 	return dfi.newsScraper.GetNewsFromURL(url)
 }
 
@@ -165,7 +165,7 @@ func (dfi *DataFlowInterface) SearchSymbols(query string) ([]string, error) {
 func (dfi *DataFlowInterface) GetRecentNews(symbol string) ([]*NewsArticle, error) {
 	end := time.Now()
 	start := end.AddDate(0, 0, -7) // Last 7 days
-	
+
 	return dfi.GetFinnhubNews(symbol, start, end)
 }
 
@@ -178,38 +178,38 @@ func (dfi *DataFlowInterface) GetRecentMarketData(symbol string) ([]*MarketData,
 func (dfi *DataFlowInterface) GetRecentInsiderActivity(symbol string) ([]*InsiderTransaction, error) {
 	end := time.Now()
 	start := end.AddDate(0, 0, -90) // Last 90 days
-	
+
 	return dfi.GetFinnhubCompanyInsiderTransactions(symbol, start, end)
 }
 
 // GetMarketOverview gets a comprehensive market overview for a symbol
 func (dfi *DataFlowInterface) GetMarketOverview(symbol string) (map[string]interface{}, error) {
 	overview := make(map[string]interface{})
-	
+
 	// Get company info
 	if info, err := dfi.GetCompanyInfo(symbol); err == nil {
 		overview["company_info"] = info
 	}
-	
+
 	// Get recent quote
 	if quote, err := dfi.GetYFinDataOnline(symbol); err == nil {
 		overview["current_quote"] = quote
 	}
-	
+
 	// Get recent market data
 	if marketData, err := dfi.GetRecentMarketData(symbol); err == nil {
 		overview["recent_data"] = marketData
 	}
-	
+
 	// Get recent news
 	if news, err := dfi.GetRecentNews(symbol); err == nil {
 		overview["recent_news"] = news
 	}
-	
+
 	if len(overview) == 0 {
 		return nil, fmt.Errorf("unable to fetch any market overview data for %s", symbol)
 	}
-	
+
 	return overview, nil
 }
 
@@ -218,25 +218,25 @@ func (dfi *DataFlowInterface) GetMarketOverview(symbol string) (map[string]inter
 // GetMultipleSymbolsData gets market data for multiple symbols
 func (dfi *DataFlowInterface) GetMultipleSymbolsData(symbols []string, days int) (map[string][]*MarketData, error) {
 	result := make(map[string][]*MarketData)
-	
+
 	for _, symbol := range symbols {
 		if data, err := dfi.GetYFinDataWindow(symbol, days); err == nil {
 			result[symbol] = data
 		}
 	}
-	
+
 	return result, nil
 }
 
 // GetMultipleSymbolsNews gets news for multiple symbols
 func (dfi *DataFlowInterface) GetMultipleSymbolsNews(symbols []string) (map[string][]*NewsArticle, error) {
 	result := make(map[string][]*NewsArticle)
-	
+
 	for _, symbol := range symbols {
 		if news, err := dfi.GetRecentNews(symbol); err == nil {
 			result[symbol] = news
 		}
 	}
-	
+
 	return result, nil
 }

@@ -25,11 +25,11 @@ const (
 type LLMProvider string
 
 const (
-	OpenAIProvider    LLMProvider = "openai"
-	AnthropicProvider LLMProvider = "anthropic"
-	GoogleProvider    LLMProvider = "google"
+	OpenAIProvider     LLMProvider = "openai"
+	AnthropicProvider  LLMProvider = "anthropic"
+	GoogleProvider     LLMProvider = "google"
 	OpenRouterProvider LLMProvider = "openrouter"
-	OllamaProvider    LLMProvider = "ollama"
+	OllamaProvider     LLMProvider = "ollama"
 )
 
 // AgentStatus represents the status of an agent
@@ -60,39 +60,39 @@ type AnalysisProgress struct {
 	SocialAnalyst       AgentStatus `json:"social_analyst"`
 	NewsAnalyst         AgentStatus `json:"news_analyst"`
 	FundamentalsAnalyst AgentStatus `json:"fundamentals_analyst"`
-	
+
 	// Research Team
-	BullResearcher      AgentStatus `json:"bull_researcher"`
-	BearResearcher      AgentStatus `json:"bear_researcher"`
-	ResearchManager     AgentStatus `json:"research_manager"`
-	
+	BullResearcher  AgentStatus `json:"bull_researcher"`
+	BearResearcher  AgentStatus `json:"bear_researcher"`
+	ResearchManager AgentStatus `json:"research_manager"`
+
 	// Trading Team
-	Trader              AgentStatus `json:"trader"`
-	
+	Trader AgentStatus `json:"trader"`
+
 	// Risk Management Team
-	RiskyAnalyst        AgentStatus `json:"risky_analyst"`
-	SafeAnalyst         AgentStatus `json:"safe_analyst"`
-	NeutralAnalyst      AgentStatus `json:"neutral_analyst"`
-	RiskManager         AgentStatus `json:"risk_manager"`
+	RiskyAnalyst   AgentStatus `json:"risky_analyst"`
+	SafeAnalyst    AgentStatus `json:"safe_analyst"`
+	NeutralAnalyst AgentStatus `json:"neutral_analyst"`
+	RiskManager    AgentStatus `json:"risk_manager"`
 }
 
 // AnalysisStats tracks statistics during analysis
 type AnalysisStats struct {
-	ToolCallsCount  int    `json:"tool_calls_count"`
-	LLMCallsCount   int    `json:"llm_calls_count"`
-	ReportsGenerated int   `json:"reports_generated"`
-	CurrentPhase    string `json:"current_phase"`
-	StartTime       time.Time `json:"start_time"`
-	ElapsedTime     time.Duration `json:"elapsed_time"`
+	ToolCallsCount   int           `json:"tool_calls_count"`
+	LLMCallsCount    int           `json:"llm_calls_count"`
+	ReportsGenerated int           `json:"reports_generated"`
+	CurrentPhase     string        `json:"current_phase"`
+	StartTime        time.Time     `json:"start_time"`
+	ElapsedTime      time.Duration `json:"elapsed_time"`
 }
 
 // LogMessage represents a log entry in the analysis
 type LogMessage struct {
-	Timestamp time.Time   `json:"timestamp"`
-	Agent     string      `json:"agent"`
-	Type      string      `json:"type"` // "tool_call", "reasoning", "report", "error"
-	Content   string      `json:"content"`
-	Level     string      `json:"level"` // "info", "warn", "error"
+	Timestamp time.Time `json:"timestamp"`
+	Agent     string    `json:"agent"`
+	Type      string    `json:"type"` // "tool_call", "reasoning", "report", "error"
+	Content   string    `json:"content"`
+	Level     string    `json:"level"` // "info", "warn", "error"
 }
 
 // ReportSection represents a generated report section
@@ -106,13 +106,13 @@ type ReportSection struct {
 
 // AnalysisSession holds the complete state of an analysis session
 type AnalysisSession struct {
-	Selections UserSelections    `json:"selections"`
-	Progress   AnalysisProgress  `json:"progress"`
-	Stats      AnalysisStats     `json:"stats"`
-	Messages   []LogMessage      `json:"messages"`
-	Reports    []ReportSection   `json:"reports"`
-	ResultsDir string            `json:"results_dir"`
-	SessionID  string            `json:"session_id"`
+	Selections UserSelections   `json:"selections"`
+	Progress   AnalysisProgress `json:"progress"`
+	Stats      AnalysisStats    `json:"stats"`
+	Messages   []LogMessage     `json:"messages"`
+	Reports    []ReportSection  `json:"reports"`
+	ResultsDir string           `json:"results_dir"`
+	SessionID  string           `json:"session_id"`
 }
 
 // GetAnalystDisplayName returns a user-friendly name for the analyst type
@@ -196,11 +196,11 @@ func (p *AnalysisProgress) IsCompleted(selectedAnalysts []AnalystType) bool {
 			}
 		}
 	}
-	
+
 	// Check other teams
 	return p.ResearchManager == StatusCompleted &&
-		   p.Trader == StatusCompleted &&
-		   p.RiskManager == StatusCompleted
+		p.Trader == StatusCompleted &&
+		p.RiskManager == StatusCompleted
 }
 
 // GetCompletedCount returns the number of completed agents
@@ -212,13 +212,13 @@ func (p *AnalysisProgress) GetCompletedCount() int {
 		p.Trader,
 		p.RiskyAnalyst, p.SafeAnalyst, p.NeutralAnalyst, p.RiskManager,
 	}
-	
+
 	for _, status := range statuses {
 		if status == StatusCompleted {
 			count++
 		}
 	}
-	
+
 	return count
 }
 

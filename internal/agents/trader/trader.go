@@ -22,7 +22,7 @@ func traderRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 		state.TradingPhaseComplete = true
 		state.Phase = "risk"
 		state.Goto = consts.RiskyAnalyst
-		
+
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_trading_plan" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
@@ -89,4 +89,3 @@ func NewTraderNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 	return g
 }
-

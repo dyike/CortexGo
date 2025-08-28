@@ -364,4 +364,3 @@ func runDebugCommand(cfg *config.Config) error {
 	// Keep the server running
 	select {}
 }
-

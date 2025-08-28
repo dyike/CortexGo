@@ -8,8 +8,8 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/processing"
 	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/internal/processing"
 )
 
 func riskJudgeRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
@@ -22,7 +22,7 @@ func riskJudgeRouter(ctx context.Context, input *schema.Message, opts ...any) (o
 		state.RiskPhaseComplete = true
 		state.WorkflowComplete = true
 		state.Goto = compose.END
-		
+
 		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_final_decision" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
@@ -36,7 +36,7 @@ func riskJudgeRouter(ctx context.Context, input *schema.Message, opts ...any) (o
 		if decision, err := processing.ProcessSignal(ctx, state); err == nil {
 			state.Decision = decision
 		}
-		
+
 		return nil
 	})
 	return output, nil
@@ -100,4 +100,3 @@ func NewRiskJudgeNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
 
 	return g
 }
-

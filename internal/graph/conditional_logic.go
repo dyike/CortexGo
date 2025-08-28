@@ -51,4 +51,3 @@ func (cl *ConditionalLogic) UpdateRiskState(state *models.TradingState, speaker 
 		state.RiskDebateState.CurrentRound++
 	}
 }
-

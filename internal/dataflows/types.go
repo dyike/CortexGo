@@ -37,29 +37,29 @@ type NewsArticle struct {
 
 // RedditPost represents a Reddit post
 type RedditPost struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Content     string    `json:"content"`
-	URL         string    `json:"url"`
-	Subreddit   string    `json:"subreddit"`
-	Author      string    `json:"author"`
-	Score       int       `json:"score"`
-	Comments    int       `json:"comments"`
-	CreatedAt   time.Time `json:"created_at"`
-	Sentiment   float64   `json:"sentiment,omitempty"`
-	IsStickied  bool      `json:"is_stickied"`
-	IsLocked    bool      `json:"is_locked"`
+	ID         string    `json:"id"`
+	Title      string    `json:"title"`
+	Content    string    `json:"content"`
+	URL        string    `json:"url"`
+	Subreddit  string    `json:"subreddit"`
+	Author     string    `json:"author"`
+	Score      int       `json:"score"`
+	Comments   int       `json:"comments"`
+	CreatedAt  time.Time `json:"created_at"`
+	Sentiment  float64   `json:"sentiment,omitempty"`
+	IsStickied bool      `json:"is_stickied"`
+	IsLocked   bool      `json:"is_locked"`
 }
 
 // InsiderTransaction represents insider trading data
 type InsiderTransaction struct {
-	Symbol          string          `json:"symbol"`
-	PersonName      string          `json:"person_name"`
-	Share           int64           `json:"share"`
-	Change          int64           `json:"change"`
-	FilingDate      time.Time       `json:"filing_date"`
-	TransactionDate time.Time       `json:"transaction_date"`
-	TransactionCode string          `json:"transaction_code"`
+	Symbol           string          `json:"symbol"`
+	PersonName       string          `json:"person_name"`
+	Share            int64           `json:"share"`
+	Change           int64           `json:"change"`
+	FilingDate       time.Time       `json:"filing_date"`
+	TransactionDate  time.Time       `json:"transaction_date"`
+	TransactionCode  string          `json:"transaction_code"`
 	TransactionPrice decimal.Decimal `json:"transaction_price"`
 }
 
@@ -74,22 +74,22 @@ type InsiderSentiment struct {
 
 // FinancialStatement represents fundamental financial data
 type FinancialStatement struct {
-	Symbol      string                 `json:"symbol"`
-	Period      string                 `json:"period"`
-	Year        int                    `json:"year"`
-	Quarter     int                    `json:"quarter,omitempty"`
-	ReportDate  time.Time              `json:"report_date"`
-	Data        map[string]interface{} `json:"data"`
-	StatementType string               `json:"statement_type"` // balance_sheet, income_statement, cash_flow
+	Symbol        string                 `json:"symbol"`
+	Period        string                 `json:"period"`
+	Year          int                    `json:"year"`
+	Quarter       int                    `json:"quarter,omitempty"`
+	ReportDate    time.Time              `json:"report_date"`
+	Data          map[string]interface{} `json:"data"`
+	StatementType string                 `json:"statement_type"` // balance_sheet, income_statement, cash_flow
 }
 
 // DataResponse is a generic wrapper for API responses
 type DataResponse struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data"`
-	Error   string      `json:"error,omitempty"`
-	Source  string      `json:"source"`
-	CachedAt *time.Time `json:"cached_at,omitempty"`
+	Success  bool        `json:"success"`
+	Data     interface{} `json:"data"`
+	Error    string      `json:"error,omitempty"`
+	Source   string      `json:"source"`
+	CachedAt *time.Time  `json:"cached_at,omitempty"`
 }
 
 // DateRange represents a time period for data queries

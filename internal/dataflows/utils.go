@@ -107,25 +107,25 @@ func DefaultRetryConfig() *RetryConfig {
 // WithRetry executes a function with exponential backoff retry
 func WithRetry(config *RetryConfig, fn func() error) error {
 	var lastErr error
-	
+
 	for attempt := 0; attempt <= config.MaxRetries; attempt++ {
 		if attempt > 0 {
-			delay := time.Duration(float64(config.BaseDelay) * 
+			delay := time.Duration(float64(config.BaseDelay) *
 				pow(config.Multiplier, float64(attempt-1)))
 			if delay > config.MaxDelay {
 				delay = config.MaxDelay
 			}
 			time.Sleep(delay)
 		}
-		
+
 		if err := fn(); err != nil {
 			lastErr = err
 			continue
 		}
-		
+
 		return nil
 	}
-	
+
 	return fmt.Errorf("max retries exceeded: %w", lastErr)
 }
 
@@ -157,8 +157,8 @@ func NormalizeSymbol(symbol string) string {
 
 // FormatDateRange creates a human-readable date range string
 func FormatDateRange(start, end time.Time) string {
-	return fmt.Sprintf("%s to %s", 
-		start.Format("2006-01-02"), 
+	return fmt.Sprintf("%s to %s",
+		start.Format("2006-01-02"),
 		end.Format("2006-01-02"))
 }
 
@@ -171,13 +171,13 @@ func ParseDateString(dateStr string) (time.Time, error) {
 		"01-02-2006",
 		time.RFC3339,
 	}
-	
+
 	for _, format := range formats {
 		if t, err := time.Parse(format, dateStr); err == nil {
 			return t, nil
 		}
 	}
-	
+
 	return time.Time{}, fmt.Errorf("unable to parse date: %s", dateStr)
 }
 
@@ -204,7 +204,7 @@ func LoadDataFromFile(filePath string, result interface{}) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return json.Unmarshal(data, result)
 }
 

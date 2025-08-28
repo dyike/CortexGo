@@ -10,9 +10,11 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	t_utils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/schema"
+	"github.com/dyike/CortexGo/internal/cache"
 	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/dataflows"
 	"github.com/dyike/CortexGo/internal/models"
+	"github.com/longportapp/openapi-go/quote"
 )
 
 // createMarketDataTool creates the market data tool using proper generic types
@@ -44,55 +46,34 @@ func NewMarketool(cfg *config.Config) tool.BaseTool {
 				count = 30 // default
 			}
 
-			// Create Longport client for real market data
+			// 首先检查缓存
+			cacheManager := cache.GetMarketDataCache()
+			if cachedData, found := cacheManager.Get(ctx, input.Symbol, count); found {
+				log.Printf("Using cached market data for %s (count: %d)", input.Symbol, count)
+				return &models.MarketDataOutput{Data: cachedData}, nil
+			}
+
+			// 缓存未命中，获取真实数据
 			longportClient, err := dataflows.NewLongportClient(cfg)
 			if err != nil {
 				log.Printf("Failed to create Longport client, using mock data: %v", err)
-				longportClient = nil
+				return getMockMarketData(input.Symbol), nil
 			}
 
 			// Try to get real market data from Longport
-			if longportClient != nil {
-				sticks, err := longportClient.GetSticksWithDay(ctx, input.Symbol, count)
-				if err == nil && len(sticks) > 0 {
-					marketData := make([]*models.MarketData, 0, len(sticks))
-					for _, stick := range sticks {
-						// Convert Unix timestamp to date string
-						date := time.Unix(stick.Timestamp, 0).Format("2006-01-02")
-						// Convert decimal values to float64
-						open, _ := stick.Open.Float64()
-						high, _ := stick.High.Float64()
-						low, _ := stick.Low.Float64()
-						close, _ := stick.Close.Float64()
-						marketData = append(marketData, &models.MarketData{
-							Symbol: input.Symbol,
-							Date:   date,
-							Open:   open,
-							High:   high,
-							Low:    low,
-							Close:  close,
-							Volume: stick.Volume,
-						})
-					}
-					// log.Printf("Successfully retrieved %d market data records for %s", len(marketData), input.Symbol)
-					return &models.MarketDataOutput{Data: marketData}, nil
-				}
-				log.Printf("Failed to get real market data for %s: %v", input.Symbol, err)
-			}
+			sticks, err := longportClient.GetSticksWithDay(ctx, input.Symbol, count)
+			if err == nil && len(sticks) > 0 {
+				marketData := convertSticksToMarketData(sticks, input.Symbol)
 
-			return &models.MarketDataOutput{
-				Data: []*models.MarketData{
-					{
-						Symbol: input.Symbol,
-						Date:   time.Now().Format("2006-01-02"),
-						Open:   100.0,
-						High:   101.0,
-						Low:    99.0,
-						Close:  100.5,
-						Volume: int64(1000000),
-					},
-				},
-			}, nil
+				// 缓存数据
+				cacheManager.Set(ctx, input.Symbol, count, marketData)
+				log.Printf("Fetched and cached market data for %s (count: %d)", input.Symbol, count)
+
+				return &models.MarketDataOutput{Data: marketData}, nil
+			}
+			log.Printf("Failed to get real market data for %s: %v", input.Symbol, err)
+
+			return getMockMarketData(input.Symbol), nil
 		},
 	)
 }
@@ -178,6 +159,16 @@ func NewStockIndicatorTool(cfg *config.Config) tool.BaseTool {
 			// Calculate all indicators at once
 			allIndicators := dataflows.CalculateAllIndicators(marketData, startDate, currDate)
 
+			// 保存指标结果到CSV
+			cacheManager := cache.GetMarketDataCache()
+			go func() {
+				if err := cacheManager.SaveIndicatorsToCSV(input.Symbol, allIndicators); err != nil {
+					log.Printf("Failed to save indicators to CSV: %v", err)
+				} else {
+					log.Printf("Successfully saved indicators to CSV for %s", input.Symbol)
+				}
+			}()
+
 			// Format comprehensive result
 			var resultBuilder strings.Builder
 			resultBuilder.WriteString(fmt.Sprintf("# Technical Analysis for %s from %s to %s\n\n",
@@ -242,8 +233,15 @@ func NewStockIndicatorTool(cfg *config.Config) tool.BaseTool {
 	)
 }
 
-// getOnlineMarketDataForIndicator fetches market data online for indicator calculations
+// getOnlineMarketDataForIndicator fetches market data online for indicator calculations with caching
 func getOnlineMarketDataForIndicator(ctx context.Context, cfg *config.Config, symbol string, count int) ([]*models.MarketData, error) {
+	// 首先检查缓存
+	cacheManager := cache.GetMarketDataCache()
+	if cachedData, found := cacheManager.Get(ctx, symbol, count); found {
+		log.Printf("Using cached market data for indicators %s (count: %d)", symbol, count)
+		return cachedData, nil
+	}
+
 	longportClient, err := dataflows.NewLongportClient(cfg)
 	if err != nil {
 		return nil, err
@@ -254,24 +252,11 @@ func getOnlineMarketDataForIndicator(ctx context.Context, cfg *config.Config, sy
 		return nil, err
 	}
 
-	marketData := make([]*models.MarketData, 0, len(sticks))
-	for _, stick := range sticks {
-		date := time.Unix(stick.Timestamp, 0).Format("2006-01-02")
-		open, _ := stick.Open.Float64()
-		high, _ := stick.High.Float64()
-		low, _ := stick.Low.Float64()
-		close, _ := stick.Close.Float64()
+	marketData := convertSticksToMarketData(sticks, symbol)
 
-		marketData = append(marketData, &models.MarketData{
-			Symbol: symbol,
-			Date:   date,
-			Open:   open,
-			High:   high,
-			Low:    low,
-			Close:  close,
-			Volume: stick.Volume,
-		})
-	}
+	// 缓存数据
+	cacheManager.Set(ctx, symbol, count, marketData)
+	log.Printf("Fetched and cached market data for indicators %s (count: %d)", symbol, count)
 
 	return marketData, nil
 }
@@ -380,4 +365,44 @@ func generateTechnicalSummary(indicators map[string][]models.IndicatorValue) str
 		}
 	}
 	return summary.String()
+}
+
+// convertSticksToMarketData 提取公共的数据转换函数
+func convertSticksToMarketData(sticks []*quote.Candlestick, symbol string) []*models.MarketData {
+	marketData := make([]*models.MarketData, 0, len(sticks))
+	for _, stick := range sticks {
+		date := time.Unix(stick.Timestamp, 0).Format("2006-01-02")
+		open, _ := stick.Open.Float64()
+		high, _ := stick.High.Float64()
+		low, _ := stick.Low.Float64()
+		close, _ := stick.Close.Float64()
+
+		marketData = append(marketData, &models.MarketData{
+			Symbol: symbol,
+			Date:   date,
+			Open:   open,
+			High:   high,
+			Low:    low,
+			Close:  close,
+			Volume: stick.Volume,
+		})
+	}
+	return marketData
+}
+
+// getMockMarketData 获取模拟市场数据
+func getMockMarketData(symbol string) *models.MarketDataOutput {
+	return &models.MarketDataOutput{
+		Data: []*models.MarketData{
+			{
+				Symbol: symbol,
+				Date:   time.Now().Format("2006-01-02"),
+				Open:   100.0,
+				High:   101.0,
+				Low:    99.0,
+				Close:  100.5,
+				Volume: int64(1000000),
+			},
+		},
+	}
 }

@@ -30,13 +30,13 @@ func (sm *SessionManager) CreateSession(selections UserSelections) (*AnalysisSes
 		selections.AnalysisDate.Format("20060102"),
 		time.Now().Unix(),
 	)
-	
+
 	// Create results directory
 	resultsDir := filepath.Join(sm.config.ResultsDir, selections.Ticker, selections.AnalysisDate.Format("2006-01-02"))
 	if err := os.MkdirAll(resultsDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create results directory: %w", err)
 	}
-	
+
 	// Initialize session
 	session := &AnalysisSession{
 		Selections: selections,
@@ -50,7 +50,7 @@ func (sm *SessionManager) CreateSession(selections UserSelections) (*AnalysisSes
 		ResultsDir: resultsDir,
 		SessionID:  sessionID,
 	}
-	
+
 	// Initialize all agent statuses to pending
 	session.Progress = AnalysisProgress{
 		MarketAnalyst:       StatusPending,
@@ -66,44 +66,44 @@ func (sm *SessionManager) CreateSession(selections UserSelections) (*AnalysisSes
 		NeutralAnalyst:      StatusPending,
 		RiskManager:         StatusPending,
 	}
-	
+
 	// Add initial log message
 	session.AddLogMessage("System", "info", "session_start", "Analysis session initialized")
-	
+
 	// Save session to file
 	if err := sm.SaveSession(session); err != nil {
 		return nil, fmt.Errorf("failed to save session: %w", err)
 	}
-	
+
 	return session, nil
 }
 
 // SaveSession saves the session to a file
 func (sm *SessionManager) SaveSession(session *AnalysisSession) error {
 	sessionFile := filepath.Join(session.ResultsDir, "session.json")
-	
+
 	data, err := json.MarshalIndent(session, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal session: %w", err)
 	}
-	
+
 	return os.WriteFile(sessionFile, data, 0644)
 }
 
 // LoadSession loads a session from a file
 func (sm *SessionManager) LoadSession(sessionDir string) (*AnalysisSession, error) {
 	sessionFile := filepath.Join(sessionDir, "session.json")
-	
+
 	data, err := os.ReadFile(sessionFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read session file: %w", err)
 	}
-	
+
 	var session AnalysisSession
 	if err := json.Unmarshal(data, &session); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal session: %w", err)
 	}
-	
+
 	return &session, nil
 }
 
@@ -116,9 +116,9 @@ func (session *AnalysisSession) AddLogMessage(agent, level, msgType, content str
 		Content:   content,
 		Level:     level,
 	}
-	
+
 	session.Messages = append(session.Messages, message)
-	
+
 	// Update stats based on message type
 	switch msgType {
 	case "tool_call":
@@ -128,7 +128,7 @@ func (session *AnalysisSession) AddLogMessage(agent, level, msgType, content str
 	case "report":
 		session.Stats.ReportsGenerated++
 	}
-	
+
 	// Update elapsed time
 	session.Stats.ElapsedTime = time.Since(session.Stats.StartTime)
 }
@@ -142,7 +142,7 @@ func (session *AnalysisSession) AddReport(agent, title, content, filePath string
 		Timestamp: time.Now(),
 		FilePath:  filePath,
 	}
-	
+
 	session.Reports = append(session.Reports, report)
 	session.AddLogMessage(agent, "info", "report", fmt.Sprintf("Generated report: %s", title))
 }
@@ -175,7 +175,7 @@ func (session *AnalysisSession) UpdateAgentStatus(agentName string, status Agent
 	case "risk_manager":
 		session.Progress.RiskManager = status
 	}
-	
+
 	// Log status change
 	session.AddLogMessage(agentName, "info", "status_change", fmt.Sprintf("Status changed to %s", status))
 }
@@ -195,9 +195,9 @@ func (session *AnalysisSession) SaveReportToFile(agent, title, content string) (
 		timestamp,
 		sanitizeFilename(title),
 	)
-	
+
 	filePath := filepath.Join(session.ResultsDir, filename)
-	
+
 	// Format content as markdown
 	markdownContent := fmt.Sprintf("# %s\n\n**Agent:** %s  \n**Generated:** %s  \n**Ticker:** %s  \n**Analysis Date:** %s\n\n---\n\n%s",
 		title,
@@ -207,12 +207,12 @@ func (session *AnalysisSession) SaveReportToFile(agent, title, content string) (
 		session.Selections.AnalysisDate.Format("2006-01-02"),
 		content,
 	)
-	
+
 	// Write to file
 	if err := os.WriteFile(filePath, []byte(markdownContent), 0644); err != nil {
 		return "", fmt.Errorf("failed to write report file: %w", err)
 	}
-	
+
 	return filePath, nil
 }
 
@@ -222,9 +222,9 @@ func (session *AnalysisSession) SaveFinalReport() (string, error) {
 		session.Selections.Ticker,
 		session.Selections.AnalysisDate.Format("20060102"),
 	)
-	
+
 	filePath := filepath.Join(session.ResultsDir, filename)
-	
+
 	// Build comprehensive report
 	content := fmt.Sprintf(`# Trading Analysis Report: %s
 
@@ -314,7 +314,7 @@ func (session *AnalysisSession) SaveFinalReport() (string, error) {
 		session.Progress.NeutralAnalyst,
 		session.Progress.RiskManager,
 	)
-	
+
 	// Add individual reports
 	for i, report := range session.Reports {
 		content += fmt.Sprintf("### %d. %s - %s\n\n", i+1, report.Agent, report.Title)
@@ -322,7 +322,7 @@ func (session *AnalysisSession) SaveFinalReport() (string, error) {
 			content += fmt.Sprintf("**File:** `%s`\n\n", filepath.Base(report.FilePath))
 		}
 		content += fmt.Sprintf("**Generated:** %s\n\n", report.Timestamp.Format("2006-01-02 15:04:05"))
-		
+
 		// Add truncated content preview
 		preview := report.Content
 		if len(preview) > 500 {
@@ -330,20 +330,20 @@ func (session *AnalysisSession) SaveFinalReport() (string, error) {
 		}
 		content += preview + "\n\n---\n\n"
 	}
-	
+
 	// Add activity log summary
 	content += "## Activity Log Summary\n\n"
-	
+
 	// Count message types
 	msgCounts := map[string]int{}
 	for _, msg := range session.Messages {
 		msgCounts[msg.Type]++
 	}
-	
+
 	for msgType, count := range msgCounts {
 		content += fmt.Sprintf("- %s: %d\n", msgType, count)
 	}
-	
+
 	content += "\n## Files Generated\n\n"
 	content += fmt.Sprintf("All analysis files are saved in: `%s`\n\n", session.ResultsDir)
 	for _, report := range session.Reports {
@@ -351,14 +351,14 @@ func (session *AnalysisSession) SaveFinalReport() (string, error) {
 			content += fmt.Sprintf("- `%s`\n", filepath.Base(report.FilePath))
 		}
 	}
-	
+
 	content += "\n---\n\n*Generated by CortexGo - AI-Powered Trading Analysis*"
-	
+
 	// Write to file
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 		return "", fmt.Errorf("failed to write final report: %w", err)
 	}
-	
+
 	return filePath, nil
 }
 
@@ -368,7 +368,7 @@ func sanitizeFilename(filename string) string {
 	// Replace invalid characters with underscores
 	invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|", " "}
 	result := filename
-	
+
 	// Simple replacement approach
 	for _, invalidChar := range invalidChars {
 		for i := 0; i < len(result); i++ {
@@ -377,12 +377,12 @@ func sanitizeFilename(filename string) string {
 			}
 		}
 	}
-	
+
 	// Limit length
 	if len(result) > 50 {
 		result = result[:50]
 	}
-	
+
 	return result
 }
 
