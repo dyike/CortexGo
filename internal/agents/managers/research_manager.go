@@ -8,6 +8,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 )
 
@@ -61,7 +62,7 @@ When you complete your analysis, use the submit_research_decision tool to provid
 	return output, err
 }
 
-func NewResearchManagerNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
+func NewResearchManagerNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadResearchManagerMessages))

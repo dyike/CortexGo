@@ -41,16 +41,16 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	// 创建研究员节点 - use simple nodes with proper type adapters
 	bullResearcherGraph := researchers.NewBullResearcherNode[I, O](ctx, cfg)
 	bearResearcherGraph := researchers.NewBearResearcherNode[I, O](ctx, cfg)
-	researchManagerGraph := managers.NewResearchManagerNode[I, O](ctx)
+	researchManagerGraph := managers.NewResearchManagerNode[I, O](ctx, cfg)
 
 	// 创建交易员节点 - use simple nodes with proper type adapters
-	traderGraph := trader.NewTraderNode[I, O](ctx)
+	traderGraph := trader.NewTraderNode[I, O](ctx, cfg)
 
 	// 创建风险分析节点 - use simple nodes with proper type adapters
-	riskyAnalystGraph := risk_mgmt.NewRiskyAnalystNode[I, O](ctx)
-	neutralAnalystGraph := risk_mgmt.NewNeutralAnalystNode[I, O](ctx)
-	safeAnalystGraph := risk_mgmt.NewSafeAnalystNode[I, O](ctx)
-	riskManagerGraph := managers.NewRiskManagerNode[I, O](ctx)
+	riskyAnalystGraph := risk_mgmt.NewRiskyAnalystNode[I, O](ctx, cfg)
+	neutralAnalystGraph := risk_mgmt.NewNeutralAnalystNode[I, O](ctx, cfg)
+	safeAnalystGraph := risk_mgmt.NewSafeAnalystNode[I, O](ctx, cfg)
+	riskManagerGraph := managers.NewRiskManagerNode[I, O](ctx, cfg)
 
 	// 添加所有节点
 	// Analyst

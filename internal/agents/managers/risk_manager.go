@@ -8,6 +8,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/processing"
 )
@@ -149,7 +150,7 @@ func loadRiskManagerMessages(ctx context.Context, name string, opts ...any) (out
 	return output, err
 }
 
-func NewRiskManagerNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
+func NewRiskManagerNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadRiskManagerMessages))

@@ -9,6 +9,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 )
 
@@ -75,7 +76,7 @@ Focus on creating actionable trading plans that can be executed in real markets.
 	return output, err
 }
 
-func NewTraderNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
+func NewTraderNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 
 	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadTraderMessages))

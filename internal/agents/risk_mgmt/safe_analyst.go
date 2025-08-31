@@ -4,16 +4,31 @@ import (
 	"context"
 
 	"github.com/cloudwego/eino/compose"
+	"github.com/cloudwego/eino/schema"
+	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/config"
 )
 
-func NewSafeAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
+func NewSafeAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	// _ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(agents.SimpleLoader("You are a safe analyst who prioritizes capital preservation and conservative strategies.")))
-	// _ = g.AddChatModelNode("agent", agents.ChatModel)
-	// _ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(agents.SimpleRouter(consts.NeutralAnalyst)))
-	// _ = g.AddEdge(compose.START, "load")
-	// _ = g.AddEdge("load", "agent")
-	// _ = g.AddEdge("agent", "router")
-	// _ = g.AddEdge("router", compose.END)
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadSafeMsg))
+	_ = g.AddChatModelNode("agent", agents.ChatModel)
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(safeRouter))
+	_ = g.AddEdge(compose.START, "load")
+	_ = g.AddEdge("load", "agent")
+	_ = g.AddEdge("agent", "router")
+	_ = g.AddEdge("router", compose.END)
 	return g
+}
+
+func loadSafeMsg(ctx context.Context, input *schema.Message, opts ...any) (string, error) {
+	var (
+		output string
+		err    error
+	)
+	return output, err
+}
+
+func safeRouter(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
+	return output, err
 }
