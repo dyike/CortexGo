@@ -10,38 +10,22 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 )
 
-func bearResearcherRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
-	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		defer func() {
-			output = state.Goto
-		}()
+func NewBearResearcherNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
+	g := compose.NewGraph[I, O]()
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadBearResearcherMessages))
+	_ = g.AddChatModelNode("agent", agents.ChatModel)
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(bearResearcherRouter))
 
-		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_bear_research" {
-			argMap := map[string]interface{}{}
-			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
+	_ = g.AddEdge(compose.START, "load")
+	_ = g.AddEdge("load", "agent")
+	_ = g.AddEdge("agent", "router")
+	_ = g.AddEdge("router", compose.END)
 
-			if research, ok := argMap["research"].(string); ok {
-				state.InvestmentDebateState.BearHistory += research + "\n"
-				state.InvestmentDebateState.CurrentResponse = "Bear: " + research
-				state.InvestmentDebateState.Count++
-			}
-		}
-
-		// Use conditional logic to determine next step based on debate rounds
-		if state.InvestmentDebateState.Count >= state.InvestmentDebateState.MaxRounds*2 {
-			state.DebatePhaseComplete = true
-			state.Phase = "trading"
-			state.Goto = consts.ResearchManager
-		} else {
-			state.Goto = consts.BullResearcher
-		}
-
-		return nil
-	})
-	return output, nil
+	return g
 }
 
 func loadBearResearcherMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
@@ -97,17 +81,32 @@ Focus on building the strongest possible case against investment, backed by data
 	return output, err
 }
 
-func NewBearResearcherNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
-	g := compose.NewGraph[I, O]()
+func bearResearcherRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
+	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
+		defer func() {
+			output = state.Goto
+		}()
+		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_bear_research" {
+			argMap := map[string]interface{}{}
+			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
 
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadBearResearcherMessages))
-	_ = g.AddChatModelNode("agent", agents.ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(bearResearcherRouter))
+			if research, ok := argMap["research"].(string); ok {
+				state.InvestmentDebateState.BearHistory += research + "\n"
+				state.InvestmentDebateState.CurrentResponse = "Bear: " + research
+				state.InvestmentDebateState.Count++
+			}
+		}
 
-	_ = g.AddEdge(compose.START, "load")
-	_ = g.AddEdge("load", "agent")
-	_ = g.AddEdge("agent", "router")
-	_ = g.AddEdge("router", compose.END)
+		// Use conditional logic to determine next step based on debate rounds
+		if state.InvestmentDebateState.Count >= state.InvestmentDebateState.MaxRounds*2 {
+			state.DebatePhaseComplete = true
+			state.Phase = "trading"
+			state.Goto = consts.ResearchManager
+		} else {
+			state.Goto = consts.BullResearcher
+		}
 
-	return g
+		return nil
+	})
+	return output, nil
 }

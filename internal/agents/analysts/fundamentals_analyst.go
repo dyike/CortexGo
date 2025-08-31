@@ -9,8 +9,24 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 )
+
+func NewFundamentalsAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
+	g := compose.NewGraph[I, O]()
+
+	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadFundamentalsAnalystMessages))
+	_ = g.AddChatModelNode("agent", agents.ChatModel)
+	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(fundamentalsAnalystRouter))
+
+	_ = g.AddEdge(compose.START, "load")
+	_ = g.AddEdge("load", "agent")
+	_ = g.AddEdge("agent", "router")
+	_ = g.AddEdge("router", compose.END)
+
+	return g
+}
 
 func fundamentalsAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
@@ -73,19 +89,4 @@ Focus on financial strength, valuation metrics, and long-term investment potenti
 		return nil
 	})
 	return output, err
-}
-
-func NewFundamentalsAnalystNode[I, O any](ctx context.Context) *compose.Graph[I, O] {
-	g := compose.NewGraph[I, O]()
-
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(loadFundamentalsAnalystMessages))
-	_ = g.AddChatModelNode("agent", agents.ChatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(fundamentalsAnalystRouter))
-
-	_ = g.AddEdge(compose.START, "load")
-	_ = g.AddEdge("load", "agent")
-	_ = g.AddEdge("agent", "router")
-	_ = g.AddEdge("router", compose.END)
-
-	return g
 }
