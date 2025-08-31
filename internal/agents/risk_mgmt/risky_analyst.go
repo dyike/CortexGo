@@ -21,14 +21,14 @@ func NewRiskyAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *com
 	return g
 }
 
+func loadRiskyMsg(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
+	return output, err
+}
+
 func riskyRouter(ctx context.Context, input *schema.Message, opts ...any) (string, error) {
 	var (
 		output string
 		err    error
 	)
-	return output, err
-}
-
-func loadRiskyMsg(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	return output, err
 }

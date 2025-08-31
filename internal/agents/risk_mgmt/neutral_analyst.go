@@ -22,14 +22,14 @@ func NewNeutralAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *c
 	return g
 }
 
+func loadNeutralMsg(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
+	return output, err
+}
+
 func neutralRouter(ctx context.Context, input *schema.Message, opts ...any) (string, error) {
 	var (
 		output string
 		err    error
 	)
-	return output, err
-}
-
-func loadNeutralMsg(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	return output, err
 }

@@ -21,14 +21,10 @@ func NewSafeAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *comp
 	return g
 }
 
-func loadSafeMsg(ctx context.Context, input *schema.Message, opts ...any) (string, error) {
-	var (
-		output string
-		err    error
-	)
+func loadSafeMsg(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	return output, err
 }
 
-func safeRouter(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
+func safeRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
 	return output, err
 }
