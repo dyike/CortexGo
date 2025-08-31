@@ -3,9 +3,7 @@ package graph
 import (
 	"context"
 
-	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
-	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents/analysts"
 	"github.com/dyike/CortexGo/internal/agents/managers"
@@ -13,43 +11,7 @@ import (
 	"github.com/dyike/CortexGo/internal/agents/risk_mgmt"
 	"github.com/dyike/CortexGo/internal/agents/trader"
 	"github.com/dyike/CortexGo/internal/config"
-	"github.com/dyike/CortexGo/internal/models"
 )
-
-func createTypedAgentNode[I, O any](ctx context.Context, role string, chatModel model.ChatModel) *compose.Graph[I, O] {
-	g := compose.NewGraph[I, O]()
-
-	// Create a loader that accepts the correct input type but ignores it
-	typedLoader := func(ctx context.Context, input I, opts ...any) ([]*schema.Message, error) {
-		return SimpleLoader("You are a "+role+".")(ctx, "", opts...)
-	}
-
-	// Create a router that accepts the correct message type
-	typedRouter := func(ctx context.Context, input *schema.Message, opts ...any) (O, error) {
-		nextNode, err := SimpleRouter(consts.SocialAnalyst)(ctx, input, opts...)
-		if err != nil {
-			var zero O
-			return zero, err
-		}
-		// Convert string to O type - this is a type assertion that may fail
-		if result, ok := any(nextNode).(O); ok {
-			return result, nil
-		}
-		var zero O
-		return zero, nil
-	}
-
-	_ = g.AddLambdaNode("load", compose.InvokableLambdaWithOption(typedLoader))
-	_ = g.AddChatModelNode("agent", chatModel)
-	_ = g.AddLambdaNode("router", compose.InvokableLambdaWithOption(typedRouter))
-
-	_ = g.AddEdge(compose.START, "load")
-	_ = g.AddEdge("load", "agent")
-	_ = g.AddEdge("agent", "router")
-	_ = g.AddEdge("router", compose.END)
-
-	return g
-}
 
 func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.GenLocalState[S], cfg *config.Config) compose.Runnable[I, O] {
 	g := compose.NewGraph[I, O](
@@ -139,24 +101,4 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 		panic(err)
 	}
 	return r
-}
-
-func SimpleRouter(nextNode string) func(context.Context, *schema.Message, ...any) (string, error) {
-	return func(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
-		err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-			state.Goto = nextNode
-			return nil
-		})
-		return nextNode, nil
-	}
-}
-
-func SimpleLoader(prompt string) func(context.Context, string, ...any) ([]*schema.Message, error) {
-	return func(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
-		output = []*schema.Message{
-			schema.SystemMessage(prompt),
-			schema.UserMessage("Proceed with analysis"),
-		}
-		return output, nil
-	}
 }
