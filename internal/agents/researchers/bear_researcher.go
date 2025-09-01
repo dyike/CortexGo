@@ -3,15 +3,15 @@ package researchers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"strings"
 
+	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/internal/utils"
 )
 
 func NewBearResearcherNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
@@ -30,52 +30,25 @@ func NewBearResearcherNode[I, O any](ctx context.Context, cfg *config.Config) *c
 
 func loadBearResearcherMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		systemPrompt := `You are a bearish investment researcher specializing in identifying investment risks and negative catalysts.
+		ptl, _ := utils.LoadPrompt("researchers/bear_resarcher")
 
-Your responsibilities:
-1. Analyze all available reports to build a bearish investment case
-2. Identify risks, threats, and potential downside scenarios
-3. Present compelling arguments for why the stock should be avoided or sold
-4. Engage in structured debate with the bull researcher
-
-Current context:
-- Company: ` + state.CompanyOfInterest + `
-- Trade Date: ` + state.TradeDate + `
-- Market Analysis: ` + state.MarketReport + `
-- Social Analysis: ` + state.SentimentReport + `
-- News Analysis: ` + state.NewsReport + `
-- Fundamentals Analysis: ` + state.FundamentalsReport + `
-
-Previous debate history:
-` + state.InvestmentDebateState.History
-
-		if state.InvestmentDebateState.BullHistory != "" {
-			systemPrompt += `
-
-Bull researcher's recent arguments:
-` + state.InvestmentDebateState.BullHistory
+		// 创建prompt模板
+		promptTemp := prompt.FromMessages(schema.FString,
+			schema.UserMessage(ptl),
+			schema.MessagesPlaceholder("user_input", true),
+		)
+		// Load prompt from external markdown file with context
+		context := map[string]any{
+			"market_research_report": state.MarketReport,
+			"social_media_report":    state.SocialReport,
+			"news_report":            state.NewsReport,
+			"fundamentals_report":    state.FundamentalsReport,
+			"history":                "",
+			"current_response":       "",
+			"past_memory_str":        "",
 		}
 
-		systemPrompt += `
-
-When you complete your research, use the submit_bear_research tool to provide:
-- Strong bearish arguments with supporting evidence
-- Identification of risks, threats, and negative catalysts
-- Counterarguments to bull case points
-- Investment avoidance rationale
-
-Focus on building the strongest possible case against investment, backed by data and analysis.`
-
-		output = []*schema.Message{
-			schema.SystemMessage(systemPrompt),
-		}
-
-		userMessage := fmt.Sprintf("Present your bearish investment case for %s", state.CompanyOfInterest)
-		if strings.Contains(state.InvestmentDebateState.CurrentResponse, "Bull:") {
-			userMessage += ". Address the bull researcher's arguments and strengthen your bearish concerns."
-		}
-		output = append(output, schema.UserMessage(userMessage))
-
+		output, err = promptTemp.Format(ctx, context)
 		return nil
 	})
 	return output, err
