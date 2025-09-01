@@ -3,14 +3,16 @@ package analysts
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"time"
 
+	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/internal/utils"
 )
 
 func NewFundamentalsAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
@@ -55,37 +57,38 @@ func fundamentalsAnalystRouter(ctx context.Context, input *schema.Message, opts 
 
 func loadFundamentalsAnalystMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		systemPrompt := `You are a fundamental analyst specializing in company financial analysis and valuation.
+		systemTpl := `You are a helpful AI assistant, collaborating with other assistants.
+Use the provided tools to progress towards answering the question.
+If you are unable to fully answer, that's OK; another assistant with different tools
+will help where you left off. Execute what you can to make progress.
+If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable,
+prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop.
 
-Your responsibilities:
-1. Analyze financial statements, balance sheets, and income statements
-2. Evaluate key financial ratios like P/E, ROE, debt-to-equity
-3. Assess company fundamentals and intrinsic value
-4. Determine next analysis step in the workflow
+You have access to the following tools:
 
-Current context:
-- Company: ` + state.CompanyOfInterest + `
-- Trade Date: ` + state.TradeDate + `
-- Previous Market Analysis: ` + state.MarketReport + `
-- Previous Social Analysis: ` + state.SentimentReport + `
-- Previous News Analysis: ` + state.NewsReport + `
 
-When you complete your analysis, use the submit_fundamentals_analysis tool to provide:
-- Fundamental analysis including financial ratios and metrics
-- Company valuation assessment and financial health evaluation
-- Long-term growth prospects and competitive position analysis
-- Next analysis step (bull_researcher)
+{system_message}
 
-Focus on financial strength, valuation metrics, and long-term investment potential.`
+For your reference, the current date is {current_date}. The company we want to look at is {ticker} .
 
-		output = []*schema.Message{
-			schema.SystemMessage(systemPrompt),
+The output content should be in Chinese.
+`
+		systemPrompt, _ := utils.LoadPrompt("analysts/fundamentals_analyst")
+		// 创建prompt模板
+		promptTemp := prompt.FromMessages(schema.FString,
+			schema.SystemMessage(systemTpl),
+			schema.MessagesPlaceholder("user_input", true),
+		)
+		// Load prompt from external markdown file with context
+		context := map[string]any{
+			"CompanyOfInterest": state.CompanyOfInterest,
+			"trade_date":        state.TradeDate,
+			"current_date":      time.Now().Format("2006-01-02"),
+			"ticker":            state.CompanyOfInterest,
+			"system_message":    systemPrompt,
 		}
 
-		userMessage := fmt.Sprintf("Analyze fundamental metrics and financial health for %s on %s",
-			state.CompanyOfInterest, state.TradeDate)
-		output = append(output, schema.UserMessage(userMessage))
-
+		output, err = promptTemp.Format(ctx, context)
 		return nil
 	})
 	return output, err
