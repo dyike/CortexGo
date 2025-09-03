@@ -2,7 +2,7 @@ package researchers
 
 import (
 	"context"
-	"encoding/json"
+	"strings"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
@@ -33,27 +33,16 @@ func bullResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 		defer func() {
 			output = state.Goto
 		}()
-
-		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_bull_research" {
-			argMap := map[string]interface{}{}
-			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
-
-			if research, ok := argMap["research"].(string); ok {
-				state.InvestmentDebateState.BullHistory += research + "\n"
-				state.InvestmentDebateState.CurrentResponse = "Bull: " + research
-				state.InvestmentDebateState.Count++
-			}
+		if input != nil {
+			argument := "Bull Analyst: " + input.Content
+			investmentDebateState := state.InvestmentDebateState
+			history := investmentDebateState.History
+			bullHistory := investmentDebateState.BullHistory
+			state.InvestmentDebateState.History = history + "\n" + argument
+			state.InvestmentDebateState.BullHistory = bullHistory + "\n" + argument
+			state.InvestmentDebateState.CurrentResponse = argument
+			state.InvestmentDebateState.Count += 1
 		}
-
-		// Use conditional logic to determine next step based on debate rounds
-		// if state.InvestmentDebateState.Count >= state.InvestmentDebateState.MaxRounds*2 {
-		// 	state.DebatePhaseComplete = true
-		// 	state.Phase = "trading"
-		// 	state.Goto = consts.ResearchManager
-		// } else {
-		// 	state.Goto = consts.BearResearcher
-		// }
-
 		return nil
 	})
 	return output, nil
@@ -61,6 +50,26 @@ func bullResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 
 func loadBullResearcherMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
+		investmentDebateState := state.InvestmentDebateState
+		history := investmentDebateState.History
+		currentResponse := investmentDebateState.CurrentResponse
+
+		// TODO
+		// marketResearchReport := state.MarketReport
+		// sentimentReport := state.SentimentReport
+		// newsReport := state.NewsReport
+		// fundamentalsReport := state.FundamentalsReport
+		// Create current situation summary
+		// currSituation := fmt.Sprintf("%s\n\n%s\n\n%s\n\n%s",
+		// marketResearchReport, sentimentReport, newsReport, fundamentalsReport)
+		// Get past memories
+
+		// pastMemories := memory.GetMemories(currSituation, 2)
+		var pastMemoryStr strings.Builder
+		// for i, rec := range pastMemories {
+		// 	pastMemoryStr.WriteString(fmt.Sprintf("%d. %s\n\n", i+1, rec.Recommendation))
+		// }
+
 		ptl, _ := utils.LoadPrompt("researchers/bull_resarcher")
 		// 创建prompt模板
 		promptTemp := prompt.FromMessages(schema.FString,
@@ -73,9 +82,9 @@ func loadBullResearcherMessages(ctx context.Context, name string, opts ...any) (
 			"social_media_report":    state.SocialReport,
 			"news_report":            state.NewsReport,
 			"fundamentals_report":    state.FundamentalsReport,
-			"history":                "",
-			"current_response":       "",
-			"past_memory_str":        "",
+			"history":                history,
+			"current_response":       currentResponse,
+			"past_memory_str":        pastMemoryStr,
 		}
 
 		output, err = promptTemp.Format(ctx, context)
