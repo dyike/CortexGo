@@ -7,7 +7,6 @@ import (
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
@@ -47,13 +46,13 @@ func bullResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 		}
 
 		// Use conditional logic to determine next step based on debate rounds
-		if state.InvestmentDebateState.Count >= state.InvestmentDebateState.MaxRounds*2 {
-			state.DebatePhaseComplete = true
-			state.Phase = "trading"
-			state.Goto = consts.ResearchManager
-		} else {
-			state.Goto = consts.BearResearcher
-		}
+		// if state.InvestmentDebateState.Count >= state.InvestmentDebateState.MaxRounds*2 {
+		// 	state.DebatePhaseComplete = true
+		// 	state.Phase = "trading"
+		// 	state.Goto = consts.ResearchManager
+		// } else {
+		// 	state.Goto = consts.BearResearcher
+		// }
 
 		return nil
 	})
@@ -63,7 +62,6 @@ func bullResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 func loadBullResearcherMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		ptl, _ := utils.LoadPrompt("researchers/bull_resarcher")
-
 		// 创建prompt模板
 		promptTemp := prompt.FromMessages(schema.FString,
 			schema.UserMessage(ptl),

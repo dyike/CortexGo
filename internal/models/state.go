@@ -7,30 +7,28 @@ import (
 	"github.com/dyike/CortexGo/internal/config"
 )
 
+// InvestDebateState represents the investment debate state
 type InvestDebateState struct {
-	BullHistory     string `json:"bull_history"`
-	BearHistory     string `json:"bear_history"`
-	History         string `json:"history"`
-	CurrentResponse string `json:"current_response"`
-	JudgeDecision   string `json:"judge_decision"`
-	Count           int    `json:"count"`
-	MaxRounds       int    `json:"max_rounds"`
-	CurrentRound    int    `json:"current_round"`
+	BullHistory     string `json:"bull_history"`     // Bullish conversation history
+	BearHistory     string `json:"bear_history"`     // Bearish conversation history
+	History         string `json:"history"`          // Conversation history
+	CurrentResponse string `json:"current_response"` // Latest response
+	JudgeDecision   string `json:"judge_decision"`   // Final judge decision
+	Count           int    `json:"count"`            // Length of current conversation
 }
 
+// RiskDebateState represents the risk management team debate state
 type RiskDebateState struct {
-	RiskyHistory           string `json:"risky_history"`
-	SafeHistory            string `json:"safe_history"`
-	NeutralHistory         string `json:"neutral_history"`
-	History                string `json:"history"`
-	CurrentRiskyResponse   string `json:"current_risky_response"`
-	CurrentSafeResponse    string `json:"current_safe_response"`
-	CurrentNeutralResponse string `json:"current_neutral_response"`
-	JudgeDecision          string `json:"judge_decision"`
-	LatestSpeaker          string `json:"latest_speaker"`
-	Count                  int    `json:"count"`
-	MaxRounds              int    `json:"max_rounds"`
-	CurrentRound           int    `json:"current_round"`
+	RiskyHistory           string `json:"risky_history"`            // Risky Agent's conversation history
+	SafeHistory            string `json:"safe_history"`             // Safe Agent's conversation history
+	NeutralHistory         string `json:"neutral_history"`          // Neutral Agent's conversation history
+	History                string `json:"history"`                  // Overall conversation history
+	LatestSpeaker          string `json:"latest_speaker"`           // Analyst that spoke last
+	CurrentRiskyResponse   string `json:"current_risky_response"`   // Latest response by risky analyst
+	CurrentSafeResponse    string `json:"current_safe_response"`    // Latest response by safe analyst
+	CurrentNeutralResponse string `json:"current_neutral_response"` // Latest response by neutral analyst
+	JudgeDecision          string `json:"judge_decision"`           // Judge's decision
+	Count                  int    `json:"count"`                    // Length of current conversation
 }
 
 type TradingState struct {
@@ -43,18 +41,19 @@ type TradingState struct {
 	FundamentalsReport string `json:"fundamentals_report"`
 	NewsReport         string `json:"news_report"`
 	SocialReport       string `json:"social_report"`
+	SentimentReport    string `json:"sentiment_report"`
 
-	SentimentReport       string             `json:"sentiment_report"`
 	InvestmentDebateState *InvestDebateState `json:"investment_debate_state"`
 	RiskDebateState       *RiskDebateState   `json:"risk_debate_state"`
-	TraderInvestmentPlan  string             `json:"trader_investment_plan"`
-	InvestmentPlan        string             `json:"investment_plan"`
-	FinalTradeDecision    string             `json:"final_trade_decision"`
-	Decision              *TradingDecision   `json:"decision"`
-	Goto                  string             `json:"goto"`
-	MaxIterations         int                `json:"max_iterations"`
-	CurrentIteration      int                `json:"current_iteration"`
-	Config                *config.Config     `json:"config"` // Configuration for dynamic behavior
+
+	TraderInvestmentPlan string           `json:"trader_investment_plan"`
+	InvestmentPlan       string           `json:"investment_plan"`
+	FinalTradeDecision   string           `json:"final_trade_decision"`
+	Decision             *TradingDecision `json:"decision"`
+	Goto                 string           `json:"goto"`
+	MaxIterations        int              `json:"max_iterations"`
+	CurrentIteration     int              `json:"current_iteration"`
+	Config               *config.Config   `json:"config"` // Configuration for dynamic behavior
 
 	// Enhanced fields to match Python version
 	Phase                 string `json:"phase"`                   // Current workflow phase: analysis, debate, trading, risk
@@ -86,17 +85,18 @@ func NewTradingState(symbol string, date time.Time, userPrompt string, cfg *conf
 			History:         "",
 			CurrentResponse: "",
 			Count:           0,
-			MaxRounds:       2, // Default 2 rounds of debate
-			CurrentRound:    0,
 		},
 		RiskDebateState: &RiskDebateState{
+			RiskyHistory:           "",
+			SafeHistory:            "",
+			NeutralHistory:         "",
 			History:                "",
+			LatestSpeaker:          "",
 			CurrentRiskyResponse:   "",
 			CurrentSafeResponse:    "",
 			CurrentNeutralResponse: "",
+			JudgeDecision:          "",
 			Count:                  0,
-			MaxRounds:              2, // Default 2 rounds of risk discussion
-			CurrentRound:           0,
 		},
 		MarketReport:       "",
 		FundamentalsReport: "",
