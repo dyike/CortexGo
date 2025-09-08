@@ -1,13 +1,17 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/internal/trading"
 )
 
 // NewRootCmd creates the root command
@@ -27,13 +31,16 @@ It provides comprehensive market analysis, research, and risk assessment for inf
 			}
 			return nil
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Default behavior: start interactive mode
+			return runInteractiveMode(cfg)
+		},
 	}
 
 	// Add subcommands
 	rootCmd.AddCommand(newAnalyzeCmd(cfg))
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newConfigCmd(cfg))
-	rootCmd.AddCommand(newDebugCmd(cfg))
 
 	// Global flags
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
@@ -45,23 +52,22 @@ It provides comprehensive market analysis, research, and risk assessment for inf
 // newAnalyzeCmd creates the analyze command
 func newAnalyzeCmd(cfg *config.Config) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "analyze",
-		Short: "Run comprehensive trading analysis",
-		Long: `Run a comprehensive trading analysis for a given stock ticker.
-This command will guide you through an interactive setup process to configure
-your analysis preferences, then execute the full multi-agent trading workflow.`,
+		Use:   "analyze [SYMBOL]",
+		Short: "Run trading analysis for a stock symbol",
+		Long: `Run a comprehensive trading analysis for a given stock ticker symbol.
+Example: cortexgo analyze AAPL --date=2024-03-15`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAnalyzeCommand(cfg)
+			symbol := args[0]
+			date, _ := cmd.Flags().GetString("date")
+			
+			return runAnalyzeCommand(cfg, symbol, date)
 		},
 	}
 
 	// Analyze command flags
-	cmd.Flags().String("ticker", "", "Stock ticker symbol (interactive mode if not provided)")
 	cmd.Flags().String("date", "", "Analysis date in YYYY-MM-DD format (today if not provided)")
-	cmd.Flags().StringSlice("analysts", []string{}, "Comma-separated list of analysts to include")
-	cmd.Flags().String("depth", "", "Research depth: shallow, medium, or deep")
-	cmd.Flags().String("provider", "", "LLM provider: openai, anthropic, google, openrouter, or ollama")
-	cmd.Flags().Bool("auto", false, "Run with default settings (non-interactive mode)")
+	cmd.MarkFlagRequired("date")
 
 	return cmd
 }
@@ -109,115 +115,37 @@ func newConfigCmd(cfg *config.Config) *cobra.Command {
 }
 
 // runAnalyzeCommand executes the main analysis workflow
-func runAnalyzeCommand(cfg *config.Config) error {
+func runAnalyzeCommand(cfg *config.Config, symbol, date string) error {
 	ctx := context.Background()
 
-	// Display welcome banner
-	DisplayWelcomeBanner()
-
-	// Check for non-interactive mode flags first
-	// (In a full implementation, you'd parse the flags and create selections)
-
-	// Interactive mode - collect user preferences
-	for {
-		DisplayInfo("Starting interactive analysis configuration...")
-
-		// Step 1: Ticker Symbol
-		ticker, err := PromptForTicker()
-		if err != nil {
-			DisplayError(err)
-			continue
-		}
-
-		// Step 2: Analysis Date
-		analysisDate, err := PromptForAnalysisDate()
-		if err != nil {
-			DisplayError(err)
-			continue
-		}
-
-		// Step 3: Select Analysts
-		analysts, err := PromptForAnalysts()
-		if err != nil {
-			DisplayError(err)
-			continue
-		}
-
-		// Step 4: Research Depth
-		depth, err := PromptForResearchDepth()
-		if err != nil {
-			DisplayError(err)
-			continue
-		}
-
-		// Step 5: LLM Provider
-		provider, err := PromptForLLMProvider()
-		if err != nil {
-			DisplayError(err)
-			continue
-		}
-
-		// Step 6: Model Selection
-		quickModel, deepModel, err := PromptForModels(provider)
-		if err != nil {
-			DisplayError(err)
-			continue
-		}
-
-		// Create selections
-		selections := UserSelections{
-			Ticker:        ticker,
-			AnalysisDate:  analysisDate,
-			Analysts:      analysts,
-			ResearchDepth: depth,
-			LLMProvider:   provider,
-			QuickModel:    quickModel,
-			DeepModel:     deepModel,
-		}
-
-		// Step 7: Confirmation
-		confirmed, err := PromptForConfirmation(selections)
-		if err != nil {
-			DisplayError(err)
-			continue
-		}
-
-		if !confirmed {
-			DisplayInfo("Configuration cancelled. Starting over...")
-			continue
-		}
-
-		// Execute analysis
-		DisplaySuccess("Configuration confirmed! Starting analysis...")
-		DisplayInitializing()
-
-		analyzer := NewAnalyzer(cfg)
-		session, err := analyzer.RunAnalysis(ctx, selections)
-		if err != nil {
-			DisplayError(fmt.Errorf("analysis failed: %w", err))
-			break
-		}
-
-		// Display final results
-		DisplayCompleteReport(session)
-
-		// Ask for next action
-		restart, err := PromptForRestartOrExit()
-		if err != nil {
-			DisplayError(err)
-			break
-		}
-
-		if !restart {
-			DisplaySuccess("Thank you for using CortexGo! 🚀")
-			break
-		}
-
-		// Clear screen for new analysis
-		ClearScreen()
-		DisplayWelcomeBanner()
+	// Validate inputs
+	if symbol == "" {
+		return fmt.Errorf("symbol is required")
 	}
 
+	// Use current date if not provided
+	if date == "" {
+		date = time.Now().Format("2006-01-02")
+	}
+
+	// Validate date format
+	_, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
+	}
+
+	fmt.Printf("🚀 Starting analysis for %s on %s\n", symbol, date)
+
+	// Create trading session
+	session := trading.NewTradingSession(cfg, symbol, date)
+
+	// Run the analysis
+	err = session.Execute(ctx)
+	if err != nil {
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	fmt.Println("✅ Analysis completed successfully!")
 	return nil
 }
 
@@ -337,30 +265,67 @@ func validateConfig(cfg *config.Config) error {
 	return nil
 }
 
-func newDebugCmd(cfg *config.Config) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "debug",
-		Short: "Start Eino visual debug server",
-		Long: `Start the Eino visual debug server for debugging Graph and Chain orchestration.
-The debug server provides a web interface to visualize node execution, inputs, outputs, and timing.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDebugCommand(cfg)
-		},
+// runInteractiveMode starts the interactive trading analysis mode
+func runInteractiveMode(cfg *config.Config) error {
+	fmt.Println("🚀 Welcome to CortexGo - AI-Powered Trading Analysis")
+	fmt.Println("=" + strings.Repeat("=", 58))
+	fmt.Println()
+
+	reader := bufio.NewReader(os.Stdin)
+
+	for {
+		// Get symbol from user
+		fmt.Print("📊 Enter stock symbol (or 'exit' to quit): ")
+		symbol, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("Error reading input: %v\n", err)
+			continue
+		}
+		symbol = strings.TrimSpace(strings.ToUpper(symbol))
+
+		if symbol == "EXIT" || symbol == "QUIT" {
+			fmt.Println("👋 Thank you for using CortexGo!")
+			break
+		}
+
+		if symbol == "" {
+			fmt.Println("❌ Symbol cannot be empty. Please try again.")
+			continue
+		}
+
+		// Get date from user
+		fmt.Print("📅 Enter analysis date (YYYY-MM-DD, or press Enter for today): ")
+		date, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("Error reading input: %v\n", err)
+			continue
+		}
+		date = strings.TrimSpace(date)
+
+		// Use today's date if empty
+		if date == "" {
+			date = time.Now().Format("2006-01-02")
+			fmt.Printf("Using today's date: %s\n", date)
+		}
+
+		// Validate date format
+		_, err = time.Parse("2006-01-02", date)
+		if err != nil {
+			fmt.Printf("❌ Invalid date format. Please use YYYY-MM-DD format.\n\n")
+			continue
+		}
+
+		// Run analysis
+		fmt.Printf("\n🔄 Starting analysis for %s on %s...\n", symbol, date)
+		err = runAnalyzeCommand(cfg, symbol, date)
+		if err != nil {
+			fmt.Printf("❌ Analysis failed: %v\n", err)
+		}
+
+		fmt.Println("\n" + strings.Repeat("-", 60))
+		fmt.Println()
 	}
 
-	cmd.Flags().IntP("port", "p", 52538, "Debug server port")
-
-	return cmd
+	return nil
 }
 
-func runDebugCommand(cfg *config.Config) error {
-	fmt.Println("🚀 Starting CortexGo Eino Debug Server...")
-	fmt.Println("═══════════════════════════════════════")
-
-	// Override config with debug enabled
-	cfg.EinoDebugEnabled = true
-	cfg.Debug = true
-
-	// Keep the server running
-	select {}
-}
