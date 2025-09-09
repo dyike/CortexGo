@@ -10,7 +10,6 @@ import (
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
-	"github.com/dyike/CortexGo/internal/processing"
 )
 
 func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
@@ -46,11 +45,6 @@ func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) 
 				// Could store this in a new field for future reference
 				_ = keyArgs // For now, just acknowledge it exists
 			}
-		}
-
-		// Process the final trading signal using signal processor
-		if decision, err := processing.ProcessSignal(ctx, state); err == nil {
-			state.Decision = decision
 		}
 
 		return nil
