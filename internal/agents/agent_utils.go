@@ -5,7 +5,7 @@ import (
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/schema"
-	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/config"
 )
 
 var (

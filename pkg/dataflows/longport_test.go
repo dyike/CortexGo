@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/config"
 )
 
 func TestLongportClient_GetStaticInfo(t *testing.T) {

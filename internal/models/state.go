@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/eino/schema"
-	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/config"
 )
 
 // InvestDebateState represents the investment debate state

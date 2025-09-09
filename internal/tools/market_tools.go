@@ -10,8 +10,8 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	t_utils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/schema"
+	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/cache"
-	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/pkg/dataflows"
 	"github.com/longportapp/openapi-go/quote"
@@ -54,7 +54,12 @@ func NewMarketool(cfg *config.Config) tool.BaseTool {
 			}
 
 			// 缓存未命中，获取真实数据
-			longportClient, err := dataflows.NewLongportClient(cfg)
+			longportConf := dataflows.LongportConfig{
+				AppKey:      cfg.LongportAppKey,
+				AppSecret:   cfg.LongportAppSecret,
+				AccessToken: cfg.LongportAccessToken,
+			}
+			longportClient, err := dataflows.NewLongportClient(longportConf)
 			if err != nil {
 				log.Printf("Failed to create Longport client, using mock data: %v", err)
 				return getMockMarketData(input.Symbol), nil
@@ -241,8 +246,12 @@ func getOnlineMarketDataForIndicator(ctx context.Context, cfg *config.Config, sy
 		log.Printf("Using cached market data for indicators %s (count: %d)", symbol, count)
 		return cachedData, nil
 	}
-
-	longportClient, err := dataflows.NewLongportClient(cfg)
+	longportConf := dataflows.LongportConfig{
+		AppKey:      cfg.LongportAppKey,
+		AppSecret:   cfg.LongportAppSecret,
+		AccessToken: cfg.LongportAccessToken,
+	}
+	longportClient, err := dataflows.NewLongportClient(longportConf)
 	if err != nil {
 		return nil, err
 	}

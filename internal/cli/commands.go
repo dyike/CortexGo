@@ -8,10 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
-
-	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/trading"
+	"github.com/spf13/cobra"
 )
 
 // NewRootCmd creates the root command
@@ -60,7 +59,7 @@ Example: cortexgo analyze AAPL --date=2024-03-15`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			symbol := args[0]
 			date, _ := cmd.Flags().GetString("date")
-			
+
 			return runAnalyzeCommand(cfg, symbol, date)
 		},
 	}
@@ -328,4 +327,3 @@ func runInteractiveMode(cfg *config.Config) error {
 
 	return nil
 }
-

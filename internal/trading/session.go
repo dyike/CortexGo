@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/graph"
 )
 
@@ -75,14 +75,14 @@ func (s *TradingSession) validateConfig() error {
 			return fmt.Errorf("DEEPSEEK_API_KEY is required for DeepSeek provider")
 		}
 	}
-	
+
 	return nil
 }
 
 // initializeGraph initializes the trading graph with error handling
 func (s *TradingSession) initializeGraph() error {
 	var initErr error
-	
+
 	defer func() {
 		if r := recover(); r != nil {
 			initErr = fmt.Errorf("graph initialization panicked: %v", r)
@@ -92,15 +92,15 @@ func (s *TradingSession) initializeGraph() error {
 
 	fmt.Printf("🔧 Initializing trading graph...\n")
 	s.graph = graph.NewTradingAgentsGraph(s.config.Debug, s.config)
-	
+
 	if initErr != nil {
 		return initErr
 	}
-	
+
 	if s.graph == nil {
 		return fmt.Errorf("failed to create trading graph")
 	}
-	
+
 	return nil
 }
 
@@ -121,11 +121,12 @@ func (s *TradingSession) displayResults(state interface{}) {
 	fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Printf("📈 Analysis Results for %s (%s)\n", s.symbol, s.date)
 	fmt.Println(strings.Repeat("=", 60))
-	
+
 	// In a real implementation, you would format and display
 	// the actual analysis results from the state
 	fmt.Printf("✓ Analysis completed successfully\n")
 	fmt.Printf("📄 Results saved to: %s\n", s.config.ResultsDir)
-	
+
 	fmt.Println("\n💡 Check the results directory for detailed reports.")
 }
+

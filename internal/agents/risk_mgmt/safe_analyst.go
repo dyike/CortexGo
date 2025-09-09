@@ -5,8 +5,8 @@ import (
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
+	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/config"
 )
 
 func NewSafeAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {

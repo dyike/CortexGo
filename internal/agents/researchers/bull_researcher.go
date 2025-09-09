@@ -7,8 +7,8 @@ import (
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
+	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/config"
 	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
 )

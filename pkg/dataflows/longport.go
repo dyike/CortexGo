@@ -4,23 +4,28 @@ import (
 	"context"
 	"errors"
 
-	"github.com/dyike/CortexGo/internal/config"
 	lpconfig "github.com/longportapp/openapi-go/config"
 	"github.com/longportapp/openapi-go/quote"
 	"github.com/longportapp/openapi-go/trade"
 )
+
+type LongportConfig struct {
+	AppKey      string
+	AppSecret   string
+	AccessToken string
+}
 
 type LongportClient struct {
 	tradeCtx *trade.TradeContext
 	quoteCtx *quote.QuoteContext
 }
 
-func NewLongportClient(cfg *config.Config) (*LongportClient, error) {
-	if cfg.LongportAppKey == "" || cfg.LongportAppSecret == "" || cfg.LongportAccessToken == "" {
+func NewLongportClient(cfg LongportConfig) (*LongportClient, error) {
+	if cfg.AppKey == "" || cfg.AppSecret == "" || cfg.AccessToken == "" {
 		return nil, errors.New("longport API credentials not configured")
 	}
 
-	conf, err := lpconfig.New(lpconfig.WithConfigKey(cfg.LongportAppKey, cfg.LongportAppSecret, cfg.LongportAccessToken))
+	conf, err := lpconfig.New(lpconfig.WithConfigKey(cfg.AppKey, cfg.AppSecret, cfg.AccessToken))
 	if err != nil {
 		return nil, err
 	}

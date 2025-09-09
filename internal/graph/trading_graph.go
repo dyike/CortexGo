@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/cloudwego/eino/compose"
-	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/models"
 )
 

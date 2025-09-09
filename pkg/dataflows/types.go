@@ -3,7 +3,7 @@ package dataflows
 import (
 	"time"
 
-	"github.com/dyike/CortexGo/internal/config"
+	"github.com/dyike/CortexGo/config"
 	"github.com/shopspring/decimal"
 )
 
