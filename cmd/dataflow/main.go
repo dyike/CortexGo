@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/dyike/CortexGo/internal/config"
-	"github.com/dyike/CortexGo/internal/dataflows"
+	"github.com/dyike/CortexGo/pkg/dataflows"
 )
 
 func main() {

@@ -12,8 +12,8 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/internal/cache"
 	"github.com/dyike/CortexGo/internal/config"
-	"github.com/dyike/CortexGo/internal/dataflows"
 	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/pkg/dataflows"
 	"github.com/longportapp/openapi-go/quote"
 )
 
