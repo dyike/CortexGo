@@ -2,11 +2,15 @@ package risk_mgmt
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/internal/utils"
 )
 
 func NewRiskyAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
@@ -22,6 +26,44 @@ func NewRiskyAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *com
 }
 
 func loadRiskyMsg(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
+	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
+		// Extract risk debate state data
+		riskDebateState := state.RiskDebateState
+		history := ""
+		currentSafeResponse := ""
+		currentNeutralResponse := ""
+
+		if riskDebateState != nil {
+			history = riskDebateState.History
+			currentSafeResponse = riskDebateState.CurrentSafeResponse
+			currentNeutralResponse = riskDebateState.CurrentNeutralResponse
+		}
+
+		// Load prompt from external markdown file
+		systemPrompt, _ := utils.LoadPrompt("risk_mgmt/risky_debate")
+		
+		// Create prompt template
+		promptTemp := prompt.FromMessages(schema.FString,
+			schema.SystemMessage("{system_message}"),
+			schema.MessagesPlaceholder("user_input", true),
+		)
+		
+		// Load prompt context
+		context := map[string]any{
+			"system_message":              systemPrompt,
+			"trader_decision":             state.TraderInvestmentPlan,
+			"market_research_report":      state.MarketReport,
+			"social_media_report":         state.SocialReport,
+			"news_report":                 state.NewsReport,
+			"fundamentals_report":         state.FundamentalsReport,
+			"history":                     history,
+			"current_safe_response":       currentSafeResponse,
+			"current_neutral_response":    currentNeutralResponse,
+		}
+
+		output, err = promptTemp.Format(ctx, context)
+		return err
+	})
 	return output, err
 }
 
@@ -30,5 +72,40 @@ func riskyRouter(ctx context.Context, input *schema.Message, opts ...any) (strin
 		output string
 		err    error
 	)
+	
+	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
+		defer func() {
+			output = state.Goto
+		}()
+
+		if input != nil && state.RiskDebateState != nil {
+			// Create the argument string following the Python pattern
+			argument := fmt.Sprintf("Risky Analyst: %s", input.Content)
+
+			// Update the risk debate state with new data following Python logic
+			riskDebateState := state.RiskDebateState
+			
+			// Update history fields
+			riskDebateState.History = riskDebateState.History + "\n" + argument
+			riskDebateState.RiskyHistory = riskDebateState.RiskyHistory + "\n" + argument
+			
+			// Update latest speaker and response tracking
+			riskDebateState.LatestSpeaker = "Risky"
+			riskDebateState.CurrentRiskyResponse = argument
+			
+			// Increment count
+			riskDebateState.Count = riskDebateState.Count + 1
+
+			// Add the response to the state messages
+			state.Messages = append(state.Messages, input)
+		}
+
+		// Set next step in workflow - this would typically be determined by the workflow logic
+		// For now, keeping it as is to maintain the existing pattern
+		state.Goto = "risky_analyst"
+		
+		return nil
+	})
+	
 	return output, err
 }
