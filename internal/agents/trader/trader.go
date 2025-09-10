@@ -51,7 +51,7 @@ Current context:
 - Company: ` + state.CompanyOfInterest + `
 - Trade Date: ` + state.TradeDate + `
 - Market Analysis: ` + state.MarketReport + `
-- Social Analysis: ` + state.SentimentReport + `
+- Social Analysis: ` + state.SocialReport + `
 - News Analysis: ` + state.NewsReport + `
 - Fundamentals Analysis: ` + state.FundamentalsReport + `
 - Research Decision: ` + state.InvestmentDebateState.JudgeDecision + `

@@ -121,7 +121,7 @@ func loadRiskManagerMessages(ctx context.Context, name string, opts ...any) (out
 			state.CompanyOfInterest,
 			state.TradeDate,
 			state.MarketReport,
-			state.SentimentReport,
+			state.SocialReport,
 			state.NewsReport,
 			state.FundamentalsReport,
 			state.InvestmentDebateState.JudgeDecision,

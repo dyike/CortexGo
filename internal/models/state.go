@@ -41,7 +41,6 @@ type TradingState struct {
 	FundamentalsReport string `json:"fundamentals_report"`
 	NewsReport         string `json:"news_report"`
 	SocialReport       string `json:"social_report"`
-	SentimentReport    string `json:"sentiment_report"`
 
 	InvestmentDebateState *InvestDebateState `json:"investment_debate_state"`
 	RiskDebateState       *RiskDebateState   `json:"risk_debate_state"`
@@ -100,8 +99,8 @@ func NewTradingState(symbol string, date time.Time, userPrompt string, cfg *conf
 		},
 		MarketReport:       "",
 		FundamentalsReport: "",
-		SentimentReport:    "",
 		NewsReport:         "",
+		SocialReport:       "",
 		MaxIterations:      20,
 		CurrentIteration:   0,
 		Goto:               "market_analyst",
