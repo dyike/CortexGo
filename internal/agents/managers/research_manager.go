@@ -2,14 +2,16 @@ package managers
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 
+	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/internal/utils"
 )
 
 func researchManagerRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
@@ -18,46 +20,74 @@ func researchManagerRouter(ctx context.Context, input *schema.Message, opts ...a
 			output = state.Goto
 		}()
 
-		// Mark debate phase as complete and transition to trading phase
-		state.DebatePhaseComplete = true
-		state.Phase = "trading"
-		state.Goto = consts.Trader
+		if input != nil && state.InvestmentDebateState != nil {
+			// Update the investment debate state following the Python pattern
+			investmentDebateState := state.InvestmentDebateState
+			
+			// Set judge decision and investment plan
+			investmentDebateState.JudgeDecision = input.Content
+			investmentDebateState.CurrentResponse = input.Content
+			state.InvestmentPlan = input.Content
 
-		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_research_decision" {
-			argMap := map[string]interface{}{}
-			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
+			// Add the response to the state messages
+			state.Messages = append(state.Messages, input)
 
-			if decision, ok := argMap["decision"].(string); ok {
-				state.InvestmentDebateState.JudgeDecision = decision
-			}
+			// Mark debate phase as complete and transition to trading phase
+			state.DebatePhaseComplete = true
+			state.Phase = "trading"
 		}
+
+		// Set next step to trader
+		state.Goto = consts.Trader
+		
 		return nil
 	})
-	return output, nil
+	return output, err
 }
 
 func loadResearchManagerMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		systemPrompt := `You are a senior research manager who makes final investment decisions based on debate between bull and bear researchers.
-
-Your responsibilities:
-1. Review arguments from both bull and bear researchers
-2. Weigh the strength of evidence on both sides
-3. Make a final investment decision with clear rationale
-4. Provide structured decision for the trader to execute
-
-Debate Summary:
-Bull Arguments: ` + state.InvestmentDebateState.BullHistory + `
-Bear Arguments: ` + state.InvestmentDebateState.BearHistory + `
-
-When you complete your analysis, use the submit_research_decision tool to provide your final investment decision.`
-
-		output = []*schema.Message{
-			schema.SystemMessage(systemPrompt),
-			schema.UserMessage("Based on the debate between bull and bear researchers, make your final investment decision."),
+		// Extract investment debate state data
+		investmentDebateState := state.InvestmentDebateState
+		history := ""
+		if investmentDebateState != nil {
+			history = investmentDebateState.History
 		}
 
-		return nil
+		// Get memory context for learning from past mistakes  
+		pastMemoryStr := ""
+		if len(state.PreviousDecisions) > 0 {
+			for i, decision := range state.PreviousDecisions {
+				pastMemoryStr += fmt.Sprintf("Decision %d: %+v\n\n", i+1, decision)
+			}
+		}
+
+		// Construct current situation for memory context (matching Python implementation)
+		currSituation := fmt.Sprintf("%s\n\n%s\n\n%s\n\n%s",
+			state.MarketReport,
+			state.SocialReport,
+			state.NewsReport,
+			state.FundamentalsReport)
+		_ = currSituation // For future memory integration
+
+		// Load prompt from external markdown file
+		systemPrompt, _ := utils.LoadPrompt("managers/research_manager")
+		
+		// Create prompt template
+		promptTemp := prompt.FromMessages(schema.FString,
+			schema.SystemMessage("{system_message}"),
+			schema.MessagesPlaceholder("user_input", true),
+		)
+		
+		// Load prompt context
+		context := map[string]any{
+			"system_message":        systemPrompt,
+			"past_memory_str":       pastMemoryStr,
+			"history":               history,
+		}
+
+		output, err = promptTemp.Format(ctx, context)
+		return err
 	})
 	return output, err
 }
