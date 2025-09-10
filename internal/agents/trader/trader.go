@@ -2,8 +2,8 @@ package trader
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
@@ -11,6 +11,7 @@ import (
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/internal/utils"
 )
 
 func traderRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
@@ -19,59 +20,63 @@ func traderRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 			output = state.Goto
 		}()
 
-		// Mark trading phase as complete and transition to risk phase
-		state.TradingPhaseComplete = true
-		state.Phase = "risk"
+		if input != nil {
+			// Set trader investment plan following the Python pattern
+			state.TraderInvestmentPlan = input.Content
+
+			// Add the response to the state messages
+			state.Messages = append(state.Messages, input)
+
+			// Mark trading phase as complete and transition to risk phase
+			state.TradingPhaseComplete = true
+			state.Phase = "risk"
+		}
+
+		// Set next step to risky analyst to start risk debate
 		state.Goto = consts.RiskyAnalyst
 
-		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_trading_plan" {
-			argMap := map[string]interface{}{}
-			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
-
-			if plan, ok := argMap["trading_plan"].(string); ok {
-				state.TraderInvestmentPlan = plan
-			}
-		}
 		return nil
 	})
-	return output, nil
+	return output, err
 }
 
 func loadTraderMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		systemPrompt := `You are a professional trader responsible for creating executable trading plans based on research and analysis.
-
-Your responsibilities:
-1. Review all analysis reports and research manager decision
-2. Create specific trading plans with entry/exit points
-3. Determine position sizing and risk parameters
-4. Prepare trading plan for risk assessment
-
-Current context:
-- Company: ` + state.CompanyOfInterest + `
-- Trade Date: ` + state.TradeDate + `
-- Market Analysis: ` + state.MarketReport + `
-- Social Analysis: ` + state.SocialReport + `
-- News Analysis: ` + state.NewsReport + `
-- Fundamentals Analysis: ` + state.FundamentalsReport + `
-- Research Decision: ` + state.InvestmentDebateState.JudgeDecision + `
-
-When you complete your analysis, use the submit_trading_plan tool to provide:
-- Specific trading plan with entry/exit points
-- Position sizing and risk parameters
-- Expected return and risk assessment
-- Trading execution strategy
-
-Focus on creating actionable trading plans that can be executed in real markets.`
-
-		output = []*schema.Message{
-			schema.SystemMessage(systemPrompt),
+		// Get memory context for learning from past mistakes
+		pastMemoryStr := ""
+		if len(state.PreviousDecisions) > 0 {
+			for i, decision := range state.PreviousDecisions {
+				pastMemoryStr += fmt.Sprintf("Decision %d: %+v\n\n", i+1, decision)
+			}
+		} else {
+			pastMemoryStr = "No past memories found."
 		}
 
-		userMessage := fmt.Sprintf("Create a trading plan for %s based on all available analysis", state.CompanyOfInterest)
-		output = append(output, schema.UserMessage(userMessage))
+		// TODO
+		currSituation := fmt.Sprintf("%s\n\n%s\n\n%s\n\n%s",
+			state.MarketReport,
+			state.SocialReport,
+			state.NewsReport,
+			state.FundamentalsReport)
+		_ = currSituation // For future memory integration
 
-		return nil
+		// Load prompt from external markdown file
+		systemPrompt, _ := utils.LoadPrompt("trader/trader")
+
+		// Create system prompt with past memory context using string replacement
+		systemPromptWithContext := strings.ReplaceAll(systemPrompt, "{past_memory_str}", pastMemoryStr)
+
+		// Create user context message matching Python implementation
+		userContextMessage := fmt.Sprintf("Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for %s. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: %s\n\nLeverage these insights to make an informed and strategic decision.",
+			state.CompanyOfInterest,
+			state.InvestmentPlan)
+
+		// Create messages following Python structure
+		output = []*schema.Message{
+			schema.SystemMessage(systemPromptWithContext),
+			schema.UserMessage(userContextMessage),
+		}
+		return err
 	})
 	return output, err
 }
