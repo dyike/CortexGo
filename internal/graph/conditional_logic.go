@@ -14,10 +14,12 @@ func ShouldContinueDebate(ctx context.Context, input string) (next string, err e
 	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		if state.InvestmentDebateState.Count >= 2 {
 			next = consts.ResearchManager
+			return nil
 		}
 		curResp := state.InvestmentDebateState.CurrentResponse
 		if strings.HasPrefix(curResp, "Bull") {
 			next = consts.BearResearcher
+			return nil
 		}
 		return nil
 	})
@@ -25,5 +27,22 @@ func ShouldContinueDebate(ctx context.Context, input string) (next string, err e
 }
 
 func ShouldContinueRiskAnalysis(ctx context.Context, input string) (next string, err error) {
-	return "", nil
+	next = consts.RiskyAnalyst
+	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
+		if state.RiskDebateState.Count >= 3 {
+			next = consts.RiskJudge
+			return nil
+		}
+		latestSpeaker := state.RiskDebateState.LatestSpeaker
+		if strings.HasPrefix(latestSpeaker, "Risky") {
+			next = consts.SafeAnalyst
+			return nil
+		}
+		if strings.HasPrefix(latestSpeaker, "Safe") {
+			next = consts.NeutralAnalyst
+			return nil
+		}
+		return nil
+	})
+	return next, nil
 }

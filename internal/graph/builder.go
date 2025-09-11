@@ -18,20 +18,6 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 		compose.WithGenLocalState(genFunc),
 	)
 
-	// Define output maps for conditional branches only
-	debateOutMap := map[string]bool{
-		consts.BullResearcher:  true,
-		consts.BearResearcher:  true,
-		consts.ResearchManager: true,
-	}
-
-	riskOutMap := map[string]bool{
-		consts.RiskyAnalyst:   true,
-		consts.SafeAnalyst:    true,
-		consts.NeutralAnalyst: true,
-		consts.RiskJudge:      true,
-	}
-
 	// 创建分析师节点 - use new ReAct-based MarketAnalyst
 	marketAnalystGraph := analysts.NewMarketAnalyst[I, O](ctx, cfg)
 	socialAnalystGraph := analysts.NewSocialAnalyst[I, O](ctx, cfg)
@@ -78,17 +64,32 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	_ = g.AddEdge(consts.FundamentalsAnalyst, consts.BullResearcher)
 
 	// // Conditional branches for debate phase (bull/bear cycle)
-	_ = g.AddBranch(consts.BullResearcher, compose.NewGraphBranch(ShouldContinueDebate, debateOutMap))
-	_ = g.AddBranch(consts.BearResearcher, compose.NewGraphBranch(ShouldContinueDebate, debateOutMap))
+	_ = g.AddBranch(consts.BullResearcher, compose.NewGraphBranch(ShouldContinueDebate, map[string]bool{
+		consts.BearResearcher:  true,
+		consts.ResearchManager: true,
+	}))
+	_ = g.AddBranch(consts.BearResearcher, compose.NewGraphBranch(ShouldContinueDebate, map[string]bool{
+		consts.BullResearcher:  true,
+		consts.ResearchManager: true,
+	}))
 
 	// // Sequential edge to trading phase
 	_ = g.AddEdge(consts.ResearchManager, consts.Trader)
 	_ = g.AddEdge(consts.Trader, consts.RiskyAnalyst)
 
 	// // Conditional branches for risk phase (three-way cycle)
-	_ = g.AddBranch(consts.RiskyAnalyst, compose.NewGraphBranch(ShouldContinueRiskAnalysis, riskOutMap))
-	_ = g.AddBranch(consts.SafeAnalyst, compose.NewGraphBranch(ShouldContinueRiskAnalysis, riskOutMap))
-	_ = g.AddBranch(consts.NeutralAnalyst, compose.NewGraphBranch(ShouldContinueRiskAnalysis, riskOutMap))
+	_ = g.AddBranch(consts.RiskyAnalyst, compose.NewGraphBranch(ShouldContinueRiskAnalysis, map[string]bool{
+		consts.SafeAnalyst: true,
+		consts.RiskJudge:   true,
+	}))
+	_ = g.AddBranch(consts.SafeAnalyst, compose.NewGraphBranch(ShouldContinueRiskAnalysis, map[string]bool{
+		consts.NeutralAnalyst: true,
+		consts.RiskJudge:      true,
+	}))
+	_ = g.AddBranch(consts.NeutralAnalyst, compose.NewGraphBranch(ShouldContinueRiskAnalysis, map[string]bool{
+		consts.RiskJudge:    true,
+		consts.RiskyAnalyst: true,
+	}))
 
 	// Final edge to end
 	_ = g.AddEdge(consts.RiskJudge, compose.END)
