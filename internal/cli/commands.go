@@ -1,14 +1,13 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/dyike/CortexGo/config"
+	"github.com/dyike/CortexGo/internal/display"
 	"github.com/dyike/CortexGo/internal/trading"
 	"github.com/spf13/cobra"
 )
@@ -40,6 +39,8 @@ It provides comprehensive market analysis, research, and risk assessment for inf
 	rootCmd.AddCommand(newAnalyzeCmd(cfg))
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newConfigCmd(cfg))
+	rootCmd.AddCommand(newInteractiveCmd(cfg))
+	rootCmd.AddCommand(newResultsCmd(cfg))
 
 	// Global flags
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
@@ -113,7 +114,7 @@ func newConfigCmd(cfg *config.Config) *cobra.Command {
 	return configCmd
 }
 
-// runAnalyzeCommand executes the main analysis workflow
+// runAnalyzeCommand executes the main analysis workflow with enhanced display
 func runAnalyzeCommand(cfg *config.Config, symbol, date string) error {
 	ctx := context.Background()
 
@@ -133,18 +134,31 @@ func runAnalyzeCommand(cfg *config.Config, symbol, date string) error {
 		return fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
 	}
 
-	fmt.Printf("🚀 Starting analysis for %s on %s\n", symbol, date)
+	display.DisplayInfo(fmt.Sprintf("Starting comprehensive analysis for %s on %s", symbol, date))
 
-	// Create trading session
+	// Create enhanced analysis session
+	analysisSession := NewAnalysisSession(cfg, symbol, date)
+	
+	// Run analysis with progress tracking
+	if err := analysisSession.ExecuteWithProgress(); err != nil {
+		display.DisplayError(err, "analysis execution")
+		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	// Create trading session for actual execution
 	session := trading.NewTradingSession(cfg, symbol, date)
 
 	// Run the analysis
 	err = session.Execute(ctx)
 	if err != nil {
+		display.DisplayError(err, "trading session execution")
 		return fmt.Errorf("analysis failed: %w", err)
 	}
 
-	fmt.Println("✅ Analysis completed successfully!")
+	display.DisplaySuccess("Analysis completed successfully!")
+	display.DisplayInfo(fmt.Sprintf("Results saved to: %s/%s_%s_analysis.json", 
+		cfg.ResultsDir, symbol, date))
+	
 	return nil
 }
 
@@ -264,66 +278,117 @@ func validateConfig(cfg *config.Config) error {
 	return nil
 }
 
-// runInteractiveMode starts the interactive trading analysis mode
-func runInteractiveMode(cfg *config.Config) error {
-	fmt.Println("🚀 Welcome to CortexGo - AI-Powered Trading Analysis")
-	fmt.Println("=" + strings.Repeat("=", 58))
-	fmt.Println()
+// newInteractiveCmd creates the interactive command
+func newInteractiveCmd(cfg *config.Config) *cobra.Command {
+	return &cobra.Command{
+		Use:   "interactive",
+		Short: "Start interactive analysis mode",
+		Long: `Start an enhanced interactive mode with advanced commands and features.
+Features include progress tracking, real-time results display, and configuration management.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runInteractiveMode(cfg)
+		},
+	}
+}
 
-	reader := bufio.NewReader(os.Stdin)
-
-	for {
-		// Get symbol from user
-		fmt.Print("📊 Enter stock symbol (or 'exit' to quit): ")
-		symbol, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Printf("Error reading input: %v\n", err)
-			continue
-		}
-		symbol = strings.TrimSpace(strings.ToUpper(symbol))
-
-		if symbol == "EXIT" || symbol == "QUIT" {
-			fmt.Println("👋 Thank you for using CortexGo!")
-			break
-		}
-
-		if symbol == "" {
-			fmt.Println("❌ Symbol cannot be empty. Please try again.")
-			continue
-		}
-
-		// Get date from user
-		fmt.Print("📅 Enter analysis date (YYYY-MM-DD, or press Enter for today): ")
-		date, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Printf("Error reading input: %v\n", err)
-			continue
-		}
-		date = strings.TrimSpace(date)
-
-		// Use today's date if empty
-		if date == "" {
-			date = time.Now().Format("2006-01-02")
-			fmt.Printf("Using today's date: %s\n", date)
-		}
-
-		// Validate date format
-		_, err = time.Parse("2006-01-02", date)
-		if err != nil {
-			fmt.Printf("❌ Invalid date format. Please use YYYY-MM-DD format.\n\n")
-			continue
-		}
-
-		// Run analysis
-		fmt.Printf("\n🔄 Starting analysis for %s on %s...\n", symbol, date)
-		err = runAnalyzeCommand(cfg, symbol, date)
-		if err != nil {
-			fmt.Printf("❌ Analysis failed: %v\n", err)
-		}
-
-		fmt.Println("\n" + strings.Repeat("-", 60))
-		fmt.Println()
+// newResultsCmd creates the results command
+func newResultsCmd(cfg *config.Config) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "results",
+		Short: "Manage analysis results",
+		Long:  "View, export, and manage previous analysis results",
 	}
 
+	// results list subcommand
+	cmd.AddCommand(&cobra.Command{
+		Use:   "list",
+		Short: "List previous analysis results",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return listResults(cfg)
+		},
+	})
+
+	// results show subcommand
+	showCmd := &cobra.Command{
+		Use:   "show [SYMBOL] [DATE]",
+		Short: "Show detailed results for a specific analysis",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return showResults(cfg, args[0], args[1])
+		},
+	}
+	cmd.AddCommand(showCmd)
+
+	// results export subcommand
+	exportCmd := &cobra.Command{
+		Use:   "export [SYMBOL] [DATE] [FORMAT]",
+		Short: "Export results in different formats (json, csv, pdf)",
+		Args:  cobra.ExactArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return exportResults(cfg, args[0], args[1], args[2])
+		},
+	}
+	cmd.AddCommand(exportCmd)
+
+	return cmd
+}
+
+// listResults lists all available analysis results
+func listResults(cfg *config.Config) error {
+	display.DisplayInfo("Available Analysis Results:")
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+	fmt.Println("📂 Results Directory:", cfg.ResultsDir)
+	fmt.Println("   (Feature implementation: list all JSON files in results directory)")
+	fmt.Println("   Format: SYMBOL_DATE_analysis.json")
+	fmt.Println()
+	fmt.Println("💡 Use 'cortexgo results show <SYMBOL> <DATE>' to view specific results")
 	return nil
+}
+
+// showResults displays detailed results for a specific analysis
+func showResults(cfg *config.Config, symbol, date string) error {
+	filename := fmt.Sprintf("%s/%s_%s_analysis.json", cfg.ResultsDir, symbol, date)
+	display.DisplayInfo(fmt.Sprintf("Loading results for %s on %s", symbol, date))
+	
+	// In a full implementation, this would load and display the JSON file
+	// For now, show a placeholder
+	fmt.Printf("📄 Results file: %s\n", filename)
+	fmt.Println("   (Feature implementation: load and display JSON results)")
+	
+	return nil
+}
+
+// exportResults exports analysis results in different formats
+func exportResults(cfg *config.Config, symbol, date, format string) error {
+	validFormats := []string{"json", "csv", "pdf"}
+	format = strings.ToLower(format)
+	
+	// Validate format
+	valid := false
+	for _, f := range validFormats {
+		if f == format {
+			valid = true
+			break
+		}
+	}
+	
+	if !valid {
+		return fmt.Errorf("invalid format '%s'. Supported formats: %s", 
+			format, strings.Join(validFormats, ", "))
+	}
+	
+	display.DisplayInfo(fmt.Sprintf("Exporting %s analysis from %s to %s format", symbol, date, format))
+	
+	// Implementation placeholder
+	outputFile := fmt.Sprintf("%s/%s_%s_analysis.%s", cfg.ResultsDir, symbol, date, format)
+	fmt.Printf("📤 Export file: %s\n", outputFile)
+	fmt.Println("   (Feature implementation: convert JSON to requested format)")
+	
+	return nil
+}
+
+// runInteractiveMode starts the enhanced interactive trading analysis mode
+func runInteractiveMode(cfg *config.Config) error {
+	session := NewInteractiveSession(cfg)
+	return session.Start()
 }

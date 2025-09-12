@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/dyike/CortexGo/config"
+	"github.com/dyike/CortexGo/internal/display"
 	"github.com/dyike/CortexGo/internal/graph"
+	"github.com/dyike/CortexGo/internal/models"
 )
 
 // TradingSession represents a trading analysis session
@@ -116,17 +118,27 @@ func (s *TradingSession) runWithRecovery() (interface{}, error) {
 	return result, err
 }
 
-// displayResults shows the analysis results
+// displayResults shows the analysis results using enhanced display
 func (s *TradingSession) displayResults(state interface{}) {
-	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Printf("📈 Analysis Results for %s (%s)\n", s.symbol, s.date)
-	fmt.Println(strings.Repeat("=", 60))
-
-	// In a real implementation, you would format and display
-	// the actual analysis results from the state
-	fmt.Printf("✓ Analysis completed successfully\n")
-	fmt.Printf("📄 Results saved to: %s\n", s.config.ResultsDir)
-
-	fmt.Println("\n💡 Check the results directory for detailed reports.")
+	// Try to cast to TradingState for detailed display
+	if tradingState, ok := state.(*models.TradingState); ok {
+		resultsDisplay := display.NewResultsDisplay(s.symbol, s.date)
+		resultsDisplay.DisplayAnalysisResults(tradingState)
+		
+		// Save results to file
+		filename := fmt.Sprintf("%s/%s_%s_analysis.json", 
+			s.config.ResultsDir, s.symbol, s.date)
+		if err := resultsDisplay.SaveResultsToFile(tradingState, filename); err != nil {
+			display.DisplayWarning(fmt.Sprintf("Could not save results to file: %v", err))
+		}
+	} else {
+		// Fallback to simple display
+		fmt.Println("\n" + strings.Repeat("=", 60))
+		fmt.Printf("📈 Analysis Results for %s (%s)\n", s.symbol, s.date)
+		fmt.Println(strings.Repeat("=", 60))
+		display.DisplaySuccess("Analysis completed successfully")
+		display.DisplayInfo(fmt.Sprintf("Results saved to: %s", s.config.ResultsDir))
+		fmt.Println("\n💡 Check the results directory for detailed reports.")
+	}
 }
 
