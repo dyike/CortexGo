@@ -46,10 +46,11 @@ func (s *InteractiveSession) showWelcome() {
 	fmt.Println()
 	fmt.Println("💡 Commands:")
 	fmt.Println("   analyze <SYMBOL> [date] - Run analysis for a stock")
-	fmt.Println("   config              - Show/edit configuration")
-	fmt.Println("   history             - View analysis history")
-	fmt.Println("   help                - Show detailed help")
-	fmt.Println("   exit                - Exit CortexGo")
+	fmt.Println("   batch <symbols...>      - Run batch analysis on multiple stocks")
+	fmt.Println("   config                  - Show/edit configuration")
+	fmt.Println("   history                 - View analysis history")
+	fmt.Println("   help                    - Show detailed help")
+	fmt.Println("   exit                    - Exit CortexGo")
 	fmt.Println()
 }
 
@@ -93,6 +94,18 @@ func (s *InteractiveSession) runMainLoop() error {
 			}
 			s.runAnalysis(symbol, date)
 			
+		case "batch", "b":
+			if len(parts) < 2 {
+				fmt.Println("❌ Usage: batch <SYMBOL1> [SYMBOL2] [SYMBOL3] ...")
+				fmt.Println("❌ Example: batch AAPL GOOGL MSFT")
+				continue
+			}
+			symbols := make([]string, len(parts)-1)
+			for i, symbol := range parts[1:] {
+				symbols[i] = strings.ToUpper(symbol)
+			}
+			s.runBatchAnalysis(symbols)
+			
 		case "config", "cfg":
 			s.handleConfigCommand(parts[1:])
 			
@@ -118,6 +131,8 @@ func (s *InteractiveSession) showHelp() {
 	fmt.Println("🔍 ANALYSIS COMMANDS:")
 	fmt.Println("  analyze <SYMBOL> [date]    - Run comprehensive trading analysis")
 	fmt.Println("                               Example: analyze AAPL 2024-03-15")
+	fmt.Println("  batch <symbols...>         - Run batch analysis on multiple symbols")
+	fmt.Println("                               Example: batch AAPL GOOGL MSFT")
 	fmt.Println("  history                    - View previous analysis results")
 	fmt.Println()
 	fmt.Println("⚙️  CONFIGURATION COMMANDS:")
@@ -169,6 +184,49 @@ func (s *InteractiveSession) runAnalysis(symbol, date string) {
 	fmt.Println("✅ Analysis completed successfully!")
 	fmt.Printf("📋 Results saved to: %s/%s_%s_analysis.json\n", 
 		s.config.ResultsDir, symbol, date)
+}
+
+// runBatchAnalysis executes batch analysis in interactive mode
+func (s *InteractiveSession) runBatchAnalysis(symbols []string) {
+	if len(symbols) == 0 {
+		fmt.Println("❌ No symbols provided for batch analysis")
+		return
+	}
+
+	bm := NewBatchManager(s.config)
+	
+	// Validate symbols
+	validSymbols, invalidSymbols := bm.ValidateSymbols(symbols)
+	
+	if len(invalidSymbols) > 0 {
+		fmt.Printf("⚠️  Invalid symbols (skipped): %s\n", strings.Join(invalidSymbols, ", "))
+	}
+	
+	if len(validSymbols) == 0 {
+		fmt.Println("❌ No valid symbols to analyze")
+		return
+	}
+
+	fmt.Printf("🎯 Starting batch analysis for %d symbols: %s\n", 
+		len(validSymbols), strings.Join(validSymbols, ", "))
+	
+	// Use current date
+	date := time.Now().Format("2006-01-02")
+	
+	// Use default concurrent setting (3)
+	concurrent := 3
+	
+	// Estimate duration
+	estimatedDuration := bm.EstimateBatchDuration(len(validSymbols), concurrent)
+	fmt.Printf("⏱️  Estimated completion time: %s\n", estimatedDuration.Round(time.Minute))
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	
+	if err := bm.RunBatchAnalysis(validSymbols, date, concurrent); err != nil {
+		fmt.Printf("❌ Batch analysis failed: %v\n", err)
+		return
+	}
+	
+	fmt.Println("✅ Batch analysis completed successfully!")
 }
 
 // handleConfigCommand handles configuration subcommands

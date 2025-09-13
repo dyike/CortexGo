@@ -1,0 +1,18 @@
+# CortexGo Batch Analysis Symbol List
+# Lines starting with # are comments and will be ignored
+# One symbol per line
+# Example symbols below - replace with your actual symbols
+
+AAPL
+GOOGL
+MSFT
+AMZN
+TSLA
+META
+NVDA
+NFLX
+ORCL
+CRM
+
+# You can add more symbols here
+# Maximum recommended: 50 symbols per batch for optimal performance
