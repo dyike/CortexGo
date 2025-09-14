@@ -10,6 +10,7 @@ type DataFlowInterface struct {
 	yahooFinance *YahooFinanceClient
 	finnhub      *FinnhubClient
 	newsScraper  *NewsScraperClient
+	reddit       *RedditClient
 	config       *Config
 }
 
@@ -19,6 +20,7 @@ func NewDataFlowInterface(config *Config) *DataFlowInterface {
 		yahooFinance: NewYahooFinanceClient(config),
 		finnhub:      NewFinnhubClient(config),
 		newsScraper:  NewNewsScraperClient(config),
+		reddit:       NewRedditClient(config),
 		config:       config,
 	}
 }
@@ -239,4 +241,42 @@ func (dfi *DataFlowInterface) GetMultipleSymbolsNews(symbols []string) (map[stri
 	}
 
 	return result, nil
+}
+
+// Reddit Functions
+
+// GetRedditSubredditPosts gets posts from a specific subreddit
+func (dfi *DataFlowInterface) GetRedditSubredditPosts(subreddit, sort string, limit int) ([]*RedditPost, error) {
+	if !dfi.config.OnlineTools {
+		return nil, fmt.Errorf("online tools are disabled")
+	}
+
+	return dfi.reddit.GetSubredditPosts(subreddit, sort, limit, dfi.config)
+}
+
+// SearchReddit searches Reddit posts
+func (dfi *DataFlowInterface) SearchReddit(params RedditSearchParams) ([]*RedditPost, error) {
+	if !dfi.config.OnlineTools {
+		return nil, fmt.Errorf("online tools are disabled")
+	}
+
+	return dfi.reddit.SearchReddit(params, dfi.config)
+}
+
+// GetRedditStockMentions finds stock mentions on Reddit
+func (dfi *DataFlowInterface) GetRedditStockMentions(symbol string) ([]*RedditPost, error) {
+	if !dfi.config.OnlineTools {
+		return nil, fmt.Errorf("online tools are disabled")
+	}
+
+	return dfi.reddit.GetStockMentions(symbol, dfi.config)
+}
+
+// GetRedditFinancePosts gets popular posts from finance subreddits
+func (dfi *DataFlowInterface) GetRedditFinancePosts(limit int) ([]*RedditPost, error) {
+	if !dfi.config.OnlineTools {
+		return nil, fmt.Errorf("online tools are disabled")
+	}
+
+	return dfi.reddit.GetPopularFinancePosts(limit, dfi.config)
 }

@@ -38,3 +38,4 @@ type IndicatorValue struct {
 	Date  string
 	Value float64
 }
+

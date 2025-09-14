@@ -21,8 +21,17 @@ import (
 func NewSocialAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
 	getMarketDataTool := tools.NewMarketool(cfg)
+	redditSubredditTool := tools.NewRedditSubredditTool(cfg)
+	redditSearchTool := tools.NewRedditSearchTool(cfg)
+	redditStockMentionsTool := tools.NewRedditStockMentionsTool(cfg)
+	redditFinanceNewsTool := tools.NewRedditFinanceNewsTool(cfg)
+
 	marketTools := []tool.BaseTool{
 		getMarketDataTool,
+		redditSubredditTool,
+		redditSearchTool,
+		redditStockMentionsTool,
+		redditFinanceNewsTool,
 	}
 	// Test tool info
 	if toolInfo, err := getMarketDataTool.Info(ctx); err != nil {
@@ -71,7 +80,11 @@ If you are unable to fully answer, that's OK; another assistant with different t
 If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable, prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop.
 
 You have access to the following tools:
-- xxxxx
+- get_market_data: Get market data for a specific symbol and date range
+- get_reddit_subreddit_posts: Get hot, new, or top posts from a specific subreddit
+- search_reddit_posts: Search Reddit posts across all subreddits or within specific subreddits
+- get_reddit_stock_mentions: Find Reddit posts mentioning a specific stock symbol across finance-related subreddits
+- get_reddit_finance_news: Get popular posts from major finance-related subreddits for market sentiment and news
 
 {system_message}
 
