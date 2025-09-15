@@ -20,22 +20,23 @@ import (
 
 func NewNewsAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	getMarketDataTool := tools.NewMarketool(cfg)
-	marketTools := []tool.BaseTool{
-		getMarketDataTool,
-	}
-	// Test tool info
-	if toolInfo, err := getMarketDataTool.Info(ctx); err != nil {
-		log.Printf("Failed to get tool info: %v", err)
-	} else {
-		log.Printf("Tool info - Name: %s, Desc: %s", toolInfo.Name, toolInfo.Desc)
+	redditFinanceNewsTool := tools.NewRedditFinanceNewsTool(cfg)
+	redditSearchTool := tools.NewRedditSearchTool(cfg)
+	redditStockTool := tools.NewRedditStockMentionsTool(cfg)
+	redditSubTool := tools.NewRedditSubredditTool(cfg)
+
+	redditTools := []tool.BaseTool{
+		redditFinanceNewsTool,
+		redditSearchTool,
+		redditStockTool,
+		redditSubTool,
 	}
 
 	agent, err := react.NewAgent(ctx, &react.AgentConfig{
 		MaxStep:          40, // 增加最大步数，参考实现用的是40
 		ToolCallingModel: agents.ChatModel,
 		ToolsConfig: compose.ToolsNodeConfig{
-			Tools: marketTools,
+			Tools: redditTools,
 		},
 		// 添加流式工具调用检查器
 		StreamToolCallChecker: agents.ToolCallChecker,
@@ -71,7 +72,10 @@ If you are unable to fully answer, that's OK; another assistant with different t
 If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable, prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop.
 
 You have access to the following tools:
-- xxxxx
+- get_reddit_finance_news: Get popular posts from major finance-related subreddits for market sentiment and news. Use this to gather general market sentiment and trending financial discussions.
+- search_reddit_posts: Search Reddit posts across all subreddits or within specific subreddits. Use this to find specific topics, keywords, or discussions relevant to your analysis.
+- get_reddit_stock_mentions: Find Reddit posts mentioning a specific stock symbol across finance-related subreddits. Use this to analyze retail investor sentiment about specific stocks.
+- get_reddit_subreddit_posts: Get hot, new, or top posts from a specific subreddit. Use this to focus on particular communities like r/wallstreetbets, r/investing, r/stocks, etc.
 
 {system_message}
 
