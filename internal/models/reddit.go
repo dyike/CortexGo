@@ -45,3 +45,34 @@ type RedditOutput struct {
 	Posts  []*RedditPost `json:"posts"`
 	Result string        `json:"result"`
 }
+
+// Google News models
+type NewsArticle struct {
+	Title       string    `json:"title"`
+	Content     string    `json:"content"`
+	URL         string    `json:"url"`
+	Source      string    `json:"source"`
+	PublishedAt time.Time `json:"published_at"`
+	Keywords    []string  `json:"keywords,omitempty"`
+}
+
+type GoogleNewsSearchInput struct {
+	Query      string `json:"query"`
+	Language   string `json:"language"`
+	Country    string `json:"country"`
+	MaxResults int    `json:"max_results"`
+	SortBy     string `json:"sort_by"`
+	Category   string `json:"category"`
+	Site       string `json:"site"`
+	DaysBack   int    `json:"days_back"`
+}
+
+type StockNewsInput struct {
+	Symbol     string `json:"symbol"`
+	MaxResults int    `json:"max_results"`
+}
+
+type NewsOutput struct {
+	Articles []*NewsArticle `json:"articles"`
+	Result   string         `json:"result"`
+}
