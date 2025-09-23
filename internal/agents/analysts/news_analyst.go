@@ -21,23 +21,21 @@ import (
 
 func NewNewsAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	redditFinanceNewsTool := tools.NewRedditFinanceNewsTool(cfg)
-	redditSearchTool := tools.NewRedditSearchTool(cfg)
-	redditStockTool := tools.NewRedditStockMentionsTool(cfg)
-	redditSubTool := tools.NewRedditSubredditTool(cfg)
+	googleFinanceNewsTool := tools.NewGoogleFinanceNewsTool(cfg)
+	googleNewsSearchTool := tools.NewGoogleNewsSearchTool(cfg)
+	googleStockNewsTool := tools.NewGoogleStockNewsTool(cfg)
 
-	redditTools := []tool.BaseTool{
-		redditFinanceNewsTool,
-		redditSearchTool,
-		redditStockTool,
-		redditSubTool,
+	newsTools := []tool.BaseTool{
+		googleFinanceNewsTool,
+		googleNewsSearchTool,
+		googleStockNewsTool,
 	}
 
 	agent, err := react.NewAgent(ctx, &react.AgentConfig{
 		MaxStep:          40, // 增加最大步数，参考实现用的是40
 		ToolCallingModel: agents.ChatModel,
 		ToolsConfig: compose.ToolsNodeConfig{
-			Tools: redditTools,
+			Tools: newsTools,
 		},
 		// 添加流式工具调用检查器
 		StreamToolCallChecker: agents.ToolCallChecker,
@@ -73,14 +71,13 @@ If you are unable to fully answer, that's OK; another assistant with different t
 If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable, prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop.
 
 You have access to the following tools:
-- get_reddit_finance_news: Get popular posts from major finance-related subreddits for market sentiment and news. Use this to gather general market sentiment and trending financial discussions.
-- search_reddit_posts: Search Reddit posts across all subreddits or within specific subreddits. Use this to find specific topics, keywords, or discussions relevant to your analysis.
-- get_reddit_stock_mentions: Find Reddit posts mentioning a specific stock symbol across finance-related subreddits. Use this to analyze retail investor sentiment about specific stocks.
-- get_reddit_subreddit_posts: Get hot, new, or top posts from a specific subreddit. Use this to focus on particular communities like r/wallstreetbets, r/investing, r/stocks, etc.
+- get_google_finance_news: Pull the latest macro and sector headlines from Google Finance news to understand market-moving narratives.
+- search_google_news: Run an advanced Google News query with language, country, and recency filters to collect context-rich coverage.
+- get_google_stock_news: Retrieve Google News articles for the target ticker to monitor company announcements, sentiment, and reactions.
 
 {system_message}
 
-For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}"
+For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}.
 
 The output content should be in Chinese.
 `
