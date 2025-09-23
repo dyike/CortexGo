@@ -3,6 +3,8 @@ package analysts
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/cloudwego/eino/components/prompt"
@@ -42,12 +44,33 @@ func fundamentalsAnalystRouter(ctx context.Context, input *schema.Message, opts 
 		state.Phase = "debate"
 		state.Goto = consts.BullResearcher
 
-		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_fundamentals_analysis" {
+		var reportContent string
+		if input != nil && len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_fundamentals_analysis" {
 			argMap := map[string]interface{}{}
 			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
 
 			if analysis, ok := argMap["analysis"].(string); ok {
 				state.FundamentalsReport = analysis
+				reportContent = analysis
+			}
+		}
+
+		if reportContent == "" && input != nil {
+			reportContent = input.Content
+			if state.FundamentalsReport == "" {
+				state.FundamentalsReport = reportContent
+			}
+		}
+
+		if input != nil {
+			state.Messages = append(state.Messages, input)
+		}
+
+		if reportContent != "" {
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "fundamentals_analyst_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, reportContent); err != nil {
+				log.Printf("Failed to write fundamentals report to file: %v", err)
 			}
 		}
 		return nil

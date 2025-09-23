@@ -2,6 +2,7 @@ package analysts
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -79,7 +80,9 @@ You have access to the following tools:
 
 {system_message}
 
-For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}",
+For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}"
+
+The output content should be in Chinese.
 `
 		systemPrompt, _ := utils.LoadPrompt("analysts/news_analyst")
 		// 创建prompt模板
@@ -108,9 +111,14 @@ func newsAnalystRouter(ctx context.Context, input *schema.Message, opts ...any) 
 			output = state.Goto
 		}()
 		if input != nil {
-			// TODO
 			state.NewsReport = input.Content
 			state.Messages = append(state.Messages, input)
+
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "news_analyst_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, input.Content); err != nil {
+				log.Printf("Failed to write news report to file: %v", err)
+			}
 		}
 		// 设置下一步流程
 		state.Goto = consts.NewsAnalyst

@@ -28,7 +28,7 @@ func main() {
 	agents.InitChatModel(ctx, cfg)
 
 	symbol := "UI.US"
-	tradeDate := "2025-08-06"
+	tradeDate := "2025-09-23"
 
 	parsedDate, err := time.Parse("2006-01-02", tradeDate)
 	if err != nil {

@@ -2,6 +2,7 @@ package analysts
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -20,24 +21,16 @@ import (
 
 func NewSocialAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
 	g := compose.NewGraph[I, O]()
-	getMarketDataTool := tools.NewMarketool(cfg)
 	redditSubredditTool := tools.NewRedditSubredditTool(cfg)
 	redditSearchTool := tools.NewRedditSearchTool(cfg)
 	redditStockMentionsTool := tools.NewRedditStockMentionsTool(cfg)
 	redditFinanceNewsTool := tools.NewRedditFinanceNewsTool(cfg)
 
 	marketTools := []tool.BaseTool{
-		getMarketDataTool,
 		redditSubredditTool,
 		redditSearchTool,
 		redditStockMentionsTool,
 		redditFinanceNewsTool,
-	}
-	// Test tool info
-	if toolInfo, err := getMarketDataTool.Info(ctx); err != nil {
-		log.Printf("Failed to get tool info: %v", err)
-	} else {
-		log.Printf("Tool info - Name: %s, Desc: %s", toolInfo.Name, toolInfo.Desc)
 	}
 
 	agent, err := react.NewAgent(ctx, &react.AgentConfig{
@@ -80,7 +73,6 @@ If you are unable to fully answer, that's OK; another assistant with different t
 If you or any other assistant has the FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** or deliverable, prefix your response with FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL** so the team knows to stop.
 
 You have access to the following tools:
-- get_market_data: Get market data for a specific symbol and date range
 - get_reddit_subreddit_posts: Get hot, new, or top posts from a specific subreddit
 - search_reddit_posts: Search Reddit posts across all subreddits or within specific subreddits
 - get_reddit_stock_mentions: Find Reddit posts mentioning a specific stock symbol across finance-related subreddits
@@ -88,7 +80,9 @@ You have access to the following tools:
 
 {system_message}
 
-For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}",
+For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}".
+
+The output content should be in Chinese.
 `
 		systemPrompt, _ := utils.LoadPrompt("analysts/social_analyst")
 		// 创建prompt模板
@@ -117,10 +111,15 @@ func socialAnalystRouter(ctx context.Context, input *schema.Message, opts ...any
 			output = state.Goto
 		}()
 		if input != nil {
-			// 存储市场分析报告（无论是否有工具调用）
-			// TODO
+			// 存储社交分析报告（无论是否有工具调用）
 			state.SocialReport = input.Content
 			state.Messages = append(state.Messages, input)
+
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "social_analyst_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, input.Content); err != nil {
+				log.Printf("Failed to write social report to file: %v", err)
+			}
 		}
 		// 设置下一步流程
 		state.Goto = consts.NewsAnalyst
