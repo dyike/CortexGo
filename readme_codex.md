@@ -160,28 +160,34 @@ sequenceDiagram
   1. `loadMarketMsg` 拼接系统提示，注入 `ticker`、`current_date`、自定义指令（中文输出）。
   2. `react.NewAgent` 注册 `get_market_data`、`get_stock_stats_indicators_window`，设置 40 step 上限，连接 `StreamToolCallChecker`。
   3. `marketRouter` 保存输出至 `TradingState.MarketReport`，并写入 `results/<symbol>/<date>/market_analyst_report.md`（便于分享中回顾）。
+- 提示词要点：要求先调用 `get_YFin_data` 下载基础 CSV，再从指标清单中挑选不超过 8 个互补指标，避免冗余；需解释各指标与当下行情的契合点，输出最后以 Markdown 表格收束，禁止泛泛的“走势混合”判断。
 - 可选演示：展示工具 Info、调用日志，解释如何扩展到更多指标。
 
 ### 3.2 Social Analyst
 - 聚焦 Reddit 舆情，组合五个工具（子版块、搜索、提及统计等），同样使用 ReAct 模式（`internal/agents/analysts/social_analyst.go:22`）。
 - `loadSocialAnalystMsg` 提供标准系统模板，强调 FINAL TRANSACTION PROPOSAL 的约定，便于多 Agent 协同。
 - `socialAnalystRouter` 将报告写入 `SocialReport` 并切换到 News Analyst。
+- 提示词要点：要求横向整合社交讨论、情绪时间序列与相关新闻，产出细腻洞察且明示对交易的启发；禁止草率判定“走势混合”，结尾需附 Markdown 表格梳理要点。
 
 ### 3.3 News Analyst
 - 与 Social Analyst 模式类似，但聚焦财经新闻集合，适配新闻类提示词（`internal/agents/analysts/news_analyst.go:22`）。
 - 可强调提示词差异与角色定位：新闻分析更关注宏观风险与重大事件。
+- 提示词要点：必须覆盖 EODHD 与 Finnhub 等来源，提炼对宏观与行业的交易含义；同样禁止“趋势混合”式空话，并以 Markdown 表格总结要点。
 
 ### 3.4 Fundamentals Analyst
 - 收尾分析阶段：
   - `loadFundamentalsAnalystMessages` 注入所有前置报告，构造基本面分析上下文。
   - `fundamentalsAnalystRouter` 监听 `submit_fundamentals_analysis` 工具调用，将结构化分析写入 `FundamentalsReport` 并进入辩论阶段（`internal/agents/analysts/fundamentals_analyst.go:17`）。
 - 在分享中可强调：此节点是连接分析与辩论的桥梁，负责落地“初步策略”。
+- 提示词要点：要求覆盖财报、公司画像、财务历史与内幕交易等维度，给出可操作洞察；输出需细致、避免空洞结论，并以 Markdown 表格沉淀核心观点。
 
 ## 4. 投研辩论阶段（Research Debate）
 ### 4.1 Bull / Bear Researcher
 - 两位研究员围绕 `InvestmentDebateState` 轮流发言：
   - 多头节点在 `router` 中追加 “Bull Analyst: …” 标记，并累加历史（`internal/agents/researchers/bull_researcher.go:38`）。
   - 空头节点通过工具调用 `submit_bear_research` 返回 JSON，`router` 解析并写入（`internal/agents/researchers/bear_researcher.go:45`）。
+- Bull 提示词要点：要站在做多视角主动辩论，引用市场/舆情/新闻/基本面四份报告，正面回应熊派观点并吸收过往反思；全程中文对话式输出。
+- Bear 提示词要点：聚焦风险、竞争劣势与负面信号，逐条拆解牛派论据，同样引用多源数据并结合历史反思；必须以中文辩论口吻呈现。
 - 分享技巧：展示 `History` 字段如何形成完整辩论记录，可打印样例片段。
 
 ### 4.2 Debate 控制逻辑
@@ -191,12 +197,14 @@ sequenceDiagram
 ### 4.3 Research Manager
 - `loadResearchManagerMessages` 聚合历史、记忆、提示词，生成系统消息。
 - `researchManagerRouter` 最终写入 `InvestmentPlan`、将 `Phase` 标记为 trading，并将 `Goto` 切换到 Trader（`internal/agents/managers/research_manager.go:17`）。
+- 提示词要点：要求在 Buy/Sell/Hold 中做出有力抉择（Hold 需充分论证），总结牛熊双方关键证据，并给出含策略动作的投资计划；需吸收 `{past_memory_str}` 中的教训并以自然中文表达。
 - 分享重点：研究经理是“裁判”，决定后续交易策略；其输出在后续被 Trader 读取。
 
 ## 5. 交易阶段（Trading）
 - Trader Agent 读取 `InvestmentPlan` 与历史决策记忆，生成执行计划：
   - `loadTraderMessages` 构造系统提示，补充过往 `PreviousDecisions`（`internal/agents/trader/trader.go:43`）。
   - `traderRouter` 写入 `TraderInvestmentPlan`，标记交易阶段完成，进入风险阶段。
+- 提示词要点：必须给出明确的买入/卖出/观望建议，并以 “FINAL TRANSACTION PROPOSAL: **BUY/HOLD/SELL**” 收尾；需要回顾 `{past_memory_str}` 中的经验教训以修正策略。
 - 可讨论的主题：如何接入真实下单接口、如何把输出推送到监控系统。
 
 ## 6. 风控阶段（Risk Management）
@@ -204,6 +212,9 @@ sequenceDiagram
 - Risky / Safe / Neutral 三位风险分析师共享 `RiskDebateState`：
   - `loadRiskyMsg/loadSafeMsg/loadNeutralMsg` 各自注入不同的历史上下文，强化角色视角（例如 Risky 关注收益机会，Safe 关注保护性措施）。
   - `router` 中统一追加“Risky Analyst: …”等前缀，并维护 `LatestSpeaker`、轮次等状态（`internal/agents/risk_mgmt/*.go`）。
+- Risky 提示词要点：从进取角度放大收益空间，逐条反驳保守与中性观点，并综合市场/舆情/新闻/基本面四份报告佐证高风险打法；无对手发言时需避免臆测，输出为中文对话体。
+- Safe 提示词要点：聚焦风险暴露与防御措施，紧盯对手忽略的威胁，引用相同数据源论证收敛策略；强调资产保全并以中文逐条回应风险派与中性派。
+- Neutral 提示词要点：在两端观点间校准，指出过度乐观或悲观处，结合多源数据给出折衷方案；要求中文辩论语气并推动平衡的风险收益组合。
 
 ### 6.2 风控分支逻辑
 - `ShouldContinueRiskAnalysis`：根据轮次与 `LatestSpeaker` 控制三位分析师轮换，达到上限后进入风险经理裁决（`internal/graph/conditional_logic.go:29`）。
@@ -212,6 +223,7 @@ sequenceDiagram
 - 类似研究经理，聚焦风控维度：
   - `loadRiskManagerMessages` 注入 `InvestmentPlan` 与风险历史。
   - `riskManagerRouter` 产出最终 `FinalTradeDecision` 并将 `WorkflowComplete` 设为 true（`internal/agents/managers/risk_manager.go:16`）。
+- 提示词要点：需综合三位分析师观点与 `{past_memory_str}` 的教训，对 Trader 原计划 `{trader_plan}` 做加减并输出果断的 Buy/Sell/Hold；理由要引用辩论片段，中文表述。
 - 分享中可重点强调：最终交易建议在此生成，可作为分享的“高潮”。
 
 ## 7. 工具与数据管道
@@ -259,4 +271,3 @@ sequenceDiagram
 > - 至少一个真实运行样例（带 Markdown/JSON 输出）。
 > - 几张关键日志或图形截图，辅助讲解 Agent 工具调用过程。
 > - 对 `MaxDebateRounds`、`MaxRiskDiscussRounds` 的不同配置做对比，体现工作流的灵活度。
-
