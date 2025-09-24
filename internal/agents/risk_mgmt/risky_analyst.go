@@ -3,11 +3,13 @@ package risk_mgmt
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/config"
+	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
@@ -41,24 +43,24 @@ func loadRiskyMsg(ctx context.Context, name string, opts ...any) (output []*sche
 
 		// Load prompt from external markdown file
 		systemPrompt, _ := utils.LoadPrompt("risk_mgmt/risky_debate")
-		
+
 		// Create prompt template
 		promptTemp := prompt.FromMessages(schema.FString,
 			schema.SystemMessage("{system_message}"),
 			schema.MessagesPlaceholder("user_input", true),
 		)
-		
+
 		// Load prompt context
 		context := map[string]any{
-			"system_message":              systemPrompt,
-			"trader_decision":             state.TraderInvestmentPlan,
-			"market_research_report":      state.MarketReport,
-			"social_media_report":         state.SocialReport,
-			"news_report":                 state.NewsReport,
-			"fundamentals_report":         state.FundamentalsReport,
-			"history":                     history,
-			"current_safe_response":       currentSafeResponse,
-			"current_neutral_response":    currentNeutralResponse,
+			"system_message":           systemPrompt,
+			"trader_decision":          state.TraderInvestmentPlan,
+			"market_research_report":   state.MarketReport,
+			"social_media_report":      state.SocialReport,
+			"news_report":              state.NewsReport,
+			"fundamentals_report":      state.FundamentalsReport,
+			"history":                  history,
+			"current_safe_response":    currentSafeResponse,
+			"current_neutral_response": currentNeutralResponse,
 		}
 
 		output, err = promptTemp.Format(ctx, context)
@@ -72,7 +74,7 @@ func riskyRouter(ctx context.Context, input *schema.Message, opts ...any) (strin
 		output string
 		err    error
 	)
-	
+
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
 		defer func() {
 			output = state.Goto
@@ -84,28 +86,38 @@ func riskyRouter(ctx context.Context, input *schema.Message, opts ...any) (strin
 
 			// Update the risk debate state with new data following Python logic
 			riskDebateState := state.RiskDebateState
-			
+
 			// Update history fields
 			riskDebateState.History = riskDebateState.History + "\n" + argument
 			riskDebateState.RiskyHistory = riskDebateState.RiskyHistory + "\n" + argument
-			
+
 			// Update latest speaker and response tracking
 			riskDebateState.LatestSpeaker = "Risky"
 			riskDebateState.CurrentRiskyResponse = argument
-			
+
 			// Increment count
 			riskDebateState.Count = riskDebateState.Count + 1
 
 			// Add the response to the state messages
 			state.Messages = append(state.Messages, input)
+
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "risky_analyst_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, argument); err != nil {
+				log.Printf("Failed to write risky analyst report: %v", err)
+			}
 		}
 
-		// Set next step in workflow - this would typically be determined by the workflow logic
-		// For now, keeping it as is to maintain the existing pattern
-		state.Goto = "risky_analyst"
-		
+		next := consts.SafeAnalyst
+		if state.RiskDebateState != nil {
+			if state.RiskDebateState.Count >= 3 {
+				next = consts.RiskJudge
+			}
+		}
+		state.Goto = next
+
 		return nil
 	})
-	
+
 	return output, err
 }

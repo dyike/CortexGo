@@ -30,3 +30,5 @@ Challenge each of their points to illustrate why a moderate risk strategy might 
 Focus on debating rather than simply presenting data, aiming to show that a balanced view can lead to the most reliable outcomes.
 
 Output conversationally as if you are speaking without any special formatting.
+
+The output content should be in Chinese.

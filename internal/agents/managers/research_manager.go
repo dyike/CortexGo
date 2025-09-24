@@ -3,6 +3,7 @@ package managers
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
@@ -23,7 +24,7 @@ func researchManagerRouter(ctx context.Context, input *schema.Message, opts ...a
 		if input != nil && state.InvestmentDebateState != nil {
 			// Update the investment debate state following the Python pattern
 			investmentDebateState := state.InvestmentDebateState
-			
+
 			// Set judge decision and investment plan
 			investmentDebateState.JudgeDecision = input.Content
 			investmentDebateState.CurrentResponse = input.Content
@@ -32,6 +33,12 @@ func researchManagerRouter(ctx context.Context, input *schema.Message, opts ...a
 			// Add the response to the state messages
 			state.Messages = append(state.Messages, input)
 
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "research_manager_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, input.Content); err != nil {
+				log.Printf("Failed to write research manager report: %v", err)
+			}
+
 			// Mark debate phase as complete and transition to trading phase
 			state.DebatePhaseComplete = true
 			state.Phase = "trading"
@@ -39,7 +46,7 @@ func researchManagerRouter(ctx context.Context, input *schema.Message, opts ...a
 
 		// Set next step to trader
 		state.Goto = consts.Trader
-		
+
 		return nil
 	})
 	return output, err
@@ -54,7 +61,7 @@ func loadResearchManagerMessages(ctx context.Context, name string, opts ...any) 
 			history = investmentDebateState.History
 		}
 
-		// Get memory context for learning from past mistakes  
+		// Get memory context for learning from past mistakes
 		pastMemoryStr := ""
 		if len(state.PreviousDecisions) > 0 {
 			for i, decision := range state.PreviousDecisions {
@@ -72,18 +79,18 @@ func loadResearchManagerMessages(ctx context.Context, name string, opts ...any) 
 
 		// Load prompt from external markdown file
 		systemPrompt, _ := utils.LoadPrompt("managers/research_manager")
-		
+
 		// Create prompt template
 		promptTemp := prompt.FromMessages(schema.FString,
 			schema.SystemMessage("{system_message}"),
 			schema.MessagesPlaceholder("user_input", true),
 		)
-		
+
 		// Load prompt context
 		context := map[string]any{
-			"system_message":        systemPrompt,
-			"past_memory_str":       pastMemoryStr,
-			"history":               history,
+			"system_message":  systemPrompt,
+			"past_memory_str": pastMemoryStr,
+			"history":         history,
 		}
 
 		output, err = promptTemp.Format(ctx, context)

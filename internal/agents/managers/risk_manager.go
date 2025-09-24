@@ -3,6 +3,7 @@ package managers
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
@@ -22,16 +23,22 @@ func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) 
 		if input != nil && state.RiskDebateState != nil {
 			// Update the risk debate state following the Python pattern
 			riskDebateState := state.RiskDebateState
-			
+
 			// Set judge decision and final trade decision
 			riskDebateState.JudgeDecision = input.Content
 			state.FinalTradeDecision = input.Content
-			
+
 			// Update latest speaker to Judge
 			riskDebateState.LatestSpeaker = "Judge"
 
 			// Add the response to the state messages
 			state.Messages = append(state.Messages, input)
+
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "risk_manager_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, input.Content); err != nil {
+				log.Printf("Failed to write risk manager report: %v", err)
+			}
 
 			// Mark risk phase and workflow as complete
 			state.RiskPhaseComplete = true
@@ -40,7 +47,7 @@ func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) 
 
 		// Set next step - typically end of workflow
 		state.Goto = compose.END
-		
+
 		return nil
 	})
 	return output, err
@@ -55,7 +62,7 @@ func loadRiskManagerMessages(ctx context.Context, name string, opts ...any) (out
 			history = riskDebateState.History
 		}
 
-		// Get memory context for learning from past mistakes  
+		// Get memory context for learning from past mistakes
 		pastMemoryStr := ""
 		if len(state.PreviousDecisions) > 0 {
 			for i, decision := range state.PreviousDecisions {
@@ -73,19 +80,19 @@ func loadRiskManagerMessages(ctx context.Context, name string, opts ...any) (out
 
 		// Load prompt from external markdown file
 		systemPrompt, _ := utils.LoadPrompt("managers/risk_manager")
-		
+
 		// Create prompt template
 		promptTemp := prompt.FromMessages(schema.FString,
 			schema.SystemMessage("{system_message}"),
 			schema.MessagesPlaceholder("user_input", true),
 		)
-		
+
 		// Load prompt context
 		context := map[string]any{
-			"system_message":        systemPrompt,
-			"trader_plan":           state.InvestmentPlan,
-			"past_memory_str":       pastMemoryStr,
-			"history":               history,
+			"system_message":  systemPrompt,
+			"trader_plan":     state.InvestmentPlan,
+			"past_memory_str": pastMemoryStr,
+			"history":         history,
 		}
 
 		output, err = promptTemp.Format(ctx, context)

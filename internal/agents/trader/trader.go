@@ -3,6 +3,7 @@ package trader
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/cloudwego/eino/compose"
@@ -26,6 +27,12 @@ func traderRouter(ctx context.Context, input *schema.Message, opts ...any) (outp
 
 			// Add the response to the state messages
 			state.Messages = append(state.Messages, input)
+
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "trader_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, input.Content); err != nil {
+				log.Printf("Failed to write trader report: %v", err)
+			}
 
 			// Mark trading phase as complete and transition to risk phase
 			state.TradingPhaseComplete = true
@@ -67,7 +74,10 @@ func loadTraderMessages(ctx context.Context, name string, opts ...any) (output [
 		systemPromptWithContext := strings.ReplaceAll(systemPrompt, "{past_memory_str}", pastMemoryStr)
 
 		// Create user context message matching Python implementation
-		userContextMessage := fmt.Sprintf("Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for %s. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: %s\n\nLeverage these insights to make an informed and strategic decision.",
+		userContextMessage := fmt.Sprintf(`Based on a comprehensive analysis by a team of analysts, here is an investment plan tailored for %s. This plan incorporates insights from current technical market trends, macroeconomic indicators, and social media sentiment. Use this plan as a foundation for evaluating your next trading decision.\n\nProposed Investment Plan: %s\n\nLeverage these insights to make an informed and strategic decision.
+
+The output content should be in Chinese.
+`,
 			state.CompanyOfInterest,
 			state.InvestmentPlan)
 

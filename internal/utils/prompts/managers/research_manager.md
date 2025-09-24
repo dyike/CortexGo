@@ -16,3 +16,5 @@ Here are your past reflections on mistakes:
 Here is the debate:
 Debate History:
 {history}
+
+The output content should be in Chinese.

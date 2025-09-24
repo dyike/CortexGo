@@ -3,11 +3,13 @@ package risk_mgmt
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/config"
+	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
@@ -90,11 +92,21 @@ func safeRouter(ctx context.Context, input *schema.Message, opts ...any) (output
 
 			// Add the response to the state messages
 			state.Messages = append(state.Messages, input)
+
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "safe_analyst_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, argument); err != nil {
+				log.Printf("Failed to write safe analyst report: %v", err)
+			}
 		}
 
-		// Set next step in workflow - this would typically be determined by the workflow logic
-		// For now, keeping it as is to maintain the existing pattern
-		state.Goto = "safe_analyst"
+		next := consts.NeutralAnalyst
+		if state.RiskDebateState != nil {
+			if state.RiskDebateState.Count >= 3 {
+				next = consts.RiskJudge
+			}
+		}
+		state.Goto = next
 		return nil
 	})
 	return output, err

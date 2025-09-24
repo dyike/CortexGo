@@ -2,12 +2,15 @@ package researchers
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/config"
+	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
@@ -33,15 +36,32 @@ func bullResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 		defer func() {
 			output = state.Goto
 		}()
-		if input != nil {
-			argument := "Bull Analyst: " + input.Content
+		if input != nil && state.InvestmentDebateState != nil {
+			argument := strings.TrimSpace(input.Content)
+			if argument == "" {
+				argument = "(no argument provided)"
+			}
+			labeledArgument := "Bull Analyst: " + argument
 			investmentDebateState := state.InvestmentDebateState
-			history := investmentDebateState.History
-			bullHistory := investmentDebateState.BullHistory
-			state.InvestmentDebateState.History = history + "\n" + argument
-			state.InvestmentDebateState.BullHistory = bullHistory + "\n" + argument
-			state.InvestmentDebateState.CurrentResponse = argument
-			state.InvestmentDebateState.Count += 1
+			investmentDebateState.History = strings.TrimSpace(investmentDebateState.History + "\n" + labeledArgument)
+			investmentDebateState.BullHistory = strings.TrimSpace(investmentDebateState.BullHistory + "\n" + labeledArgument)
+			investmentDebateState.CurrentResponse = labeledArgument
+			investmentDebateState.Count++
+			state.Messages = append(state.Messages, input)
+
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "bull_researcher_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, labeledArgument); err != nil {
+				log.Printf("Failed to write bull researcher report: %v", err)
+			}
+		}
+
+		if state.InvestmentDebateState != nil {
+			next := consts.BearResearcher
+			if state.InvestmentDebateState.Count >= 2 {
+				next = consts.ResearchManager
+			}
+			state.Goto = next
 		}
 		return nil
 	})

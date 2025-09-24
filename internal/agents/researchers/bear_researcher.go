@@ -3,11 +3,15 @@ package researchers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
+	"strings"
 
 	"github.com/cloudwego/eino/components/prompt"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/config"
+	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
@@ -61,15 +65,39 @@ func bearResearcherRouter(ctx context.Context, input *schema.Message, opts ...an
 		defer func() {
 			output = state.Goto
 		}()
-		if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_bear_research" {
-			argMap := map[string]interface{}{}
-			_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
-
-			if research, ok := argMap["research"].(string); ok {
-				state.InvestmentDebateState.BearHistory += research + "\n"
-				state.InvestmentDebateState.CurrentResponse = "Bear: " + research
-				state.InvestmentDebateState.Count++
+		if input != nil && state.InvestmentDebateState != nil {
+			argument := strings.TrimSpace(input.Content)
+			if len(input.ToolCalls) > 0 && input.ToolCalls[0].Function.Name == "submit_bear_research" {
+				argMap := map[string]any{}
+				_ = json.Unmarshal([]byte(input.ToolCalls[0].Function.Arguments), &argMap)
+				if research, ok := argMap["research"].(string); ok && strings.TrimSpace(research) != "" {
+					argument = strings.TrimSpace(research)
+				}
 			}
+			if argument == "" {
+				argument = "(no argument provided)"
+			}
+			labeledArgument := "Bear Analyst: " + argument
+			investmentDebateState := state.InvestmentDebateState
+			investmentDebateState.History = strings.TrimSpace(investmentDebateState.History + "\n" + labeledArgument)
+			investmentDebateState.BearHistory = strings.TrimSpace(investmentDebateState.BearHistory + "\n" + labeledArgument)
+			investmentDebateState.CurrentResponse = labeledArgument
+			investmentDebateState.Count++
+			state.Messages = append(state.Messages, input)
+
+			filePath := fmt.Sprintf("results/%s/%s", state.CompanyOfInterest, state.TradeDate)
+			fileName := "bear_researcher_report.md"
+			if err := utils.WriteMarkdown(filePath, fileName, labeledArgument); err != nil {
+				log.Printf("Failed to write bear researcher report: %v", err)
+			}
+		}
+
+		if state.InvestmentDebateState != nil {
+			next := consts.BullResearcher
+			if state.InvestmentDebateState.Count >= 2 {
+				next = consts.ResearchManager
+			}
+			state.Goto = next
 		}
 
 		// Use conditional logic to determine next step based on debate rounds

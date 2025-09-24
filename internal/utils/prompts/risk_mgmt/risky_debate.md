@@ -32,3 +32,5 @@ Engage actively by addressing any specific concerns raised, refuting the weaknes
 Maintain a focus on debating and persuading, not just presenting data. Challenge each counterpoint to underscore why a high-risk approach is optimal.
 
 Output conversationally as if you are speaking without any special formatting.
+
+The output content should be in Chinese.
