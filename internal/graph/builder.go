@@ -57,8 +57,9 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	_ = g.AddGraphNode(consts.RiskJudge, riskManagerGraph, compose.WithNodeName(consts.RiskJudge))
 
 	// Sequential edges for analysis phase (linear flow)
-	_ = g.AddEdge(compose.START, consts.MarketAnalyst)
-	_ = g.AddEdge(consts.MarketAnalyst, consts.SocialAnalyst)
+	// _ = g.AddEdge(compose.START, consts.MarketAnalyst)
+	// _ = g.AddEdge(consts.MarketAnalyst, consts.SocialAnalyst)
+	_ = g.AddEdge(compose.START, consts.SocialAnalyst)
 	_ = g.AddEdge(consts.SocialAnalyst, consts.NewsAnalyst)
 	_ = g.AddEdge(consts.NewsAnalyst, consts.FundamentalsAnalyst)
 	_ = g.AddEdge(consts.FundamentalsAnalyst, consts.BullResearcher)

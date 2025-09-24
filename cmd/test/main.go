@@ -52,7 +52,7 @@ func main() {
 	}
 
 	to := graph.NewTradingOrchestrator[string, string, *models.TradingState](ctx, genFunc, cfg)
-	_, err = to.Stream(ctx, "Analyze trading opportunities for UI on 2025-08-06",
+	_, err = to.Stream(ctx, "Analyze trading opportunities for UI on 2025-09-23",
 		compose.WithCallbacks(&graph.LoggerCallback{
 			Out: outChan,
 		}),

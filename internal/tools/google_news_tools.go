@@ -82,10 +82,10 @@ func NewGoogleNewsSearchTool(cfg *config.Config) tool.BaseTool {
 
 			maxResults := input.MaxResults
 			if maxResults <= 0 {
-				maxResults = 20
+				maxResults = 10
 			}
-			if maxResults > 50 {
-				maxResults = 50
+			if maxResults > 10 {
+				maxResults = 20
 			}
 
 			sortBy := input.SortBy
@@ -188,10 +188,10 @@ func NewGoogleFinanceNewsTool(cfg *config.Config) tool.BaseTool {
 		func(ctx context.Context, input models.FinanceNewsInput) (*models.NewsOutput, error) {
 			maxResults := input.Limit
 			if maxResults <= 0 {
-				maxResults = 20
+				maxResults = 10
 			}
-			if maxResults > 50 {
-				maxResults = 50
+			if maxResults > 10 {
+				maxResults = 20
 			}
 
 			// Create Google News client
@@ -320,10 +320,10 @@ func NewGoogleStockNewsTool(cfg *config.Config) tool.BaseTool {
 
 			maxResults := input.MaxResults
 			if maxResults <= 0 {
-				maxResults = 15
+				maxResults = 10
 			}
-			if maxResults > 30 {
-				maxResults = 30
+			if maxResults > 10 {
+				maxResults = 20
 			}
 
 			// Create Google News client
@@ -512,3 +512,4 @@ func isCommonWord(word string) bool {
 	}
 	return commonWords[strings.ToLower(word)]
 }
+

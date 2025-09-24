@@ -50,11 +50,8 @@ func NewRedditSubredditTool(cfg *config.Config) tool.BaseTool {
 			}
 
 			limit := input.Limit
-			if limit <= 0 {
-				limit = 25
-			}
-			if limit > 100 {
-				limit = 100
+			if limit <= 0 || limit > 6 {
+				limit = 6
 			}
 
 			// Create Reddit client
@@ -79,8 +76,8 @@ func NewRedditSubredditTool(cfg *config.Config) tool.BaseTool {
 				result.WriteString(fmt.Sprintf("**Created:** %s\n", post.CreatedAt.Format("2006-01-02 15:04")))
 				result.WriteString(fmt.Sprintf("**URL:** %s\n", post.URL))
 
-				if post.Content != "" && len(post.Content) > 200 {
-					result.WriteString(fmt.Sprintf("**Content Preview:** %s...\n", post.Content[:200]))
+				if post.Content != "" && len(post.Content) > 150 {
+					result.WriteString(fmt.Sprintf("**Content Preview:** %s...\n", post.Content[:150]))
 				} else if post.Content != "" {
 					result.WriteString(fmt.Sprintf("**Content:** %s\n", post.Content))
 				}
@@ -167,14 +164,17 @@ func NewRedditSearchTool(cfg *config.Config) tool.BaseTool {
 				Subreddit: input.Subreddit,
 				Sort:      input.Sort,
 				Time:      input.Time,
-				Limit:     25,
 			}
 
 			if input.Limit > 0 {
 				params.MaxResults = input.Limit
 			} else {
-				params.MaxResults = 25
+				params.MaxResults = 8
 			}
+			if params.MaxResults > 8 {
+				params.MaxResults = 8
+			}
+			params.Limit = params.MaxResults
 
 			// Create Reddit client
 			redditClient := dataflows.NewRedditClient(cfg)
@@ -206,8 +206,8 @@ func NewRedditSearchTool(cfg *config.Config) tool.BaseTool {
 					result.WriteString(fmt.Sprintf("**Created:** %s\n", post.CreatedAt.Format("2006-01-02 15:04")))
 					result.WriteString(fmt.Sprintf("**URL:** %s\n", post.URL))
 
-					if post.Content != "" && len(post.Content) > 300 {
-						result.WriteString(fmt.Sprintf("**Content Preview:** %s...\n", post.Content[:300]))
+					if post.Content != "" && len(post.Content) > 180 {
+						result.WriteString(fmt.Sprintf("**Content Preview:** %s...\n", post.Content[:180]))
 					} else if post.Content != "" {
 						result.WriteString(fmt.Sprintf("**Content:** %s\n", post.Content))
 					}
@@ -271,6 +271,11 @@ func NewRedditStockMentionsTool(cfg *config.Config) tool.BaseTool {
 				return nil, fmt.Errorf("failed to get stock mentions: %v", err)
 			}
 
+			maxPosts := 12
+			if len(posts) > maxPosts {
+				posts = posts[:maxPosts]
+			}
+
 			log.Printf("Found %d posts mentioning %s", len(posts), input.Symbol)
 
 			// Format results
@@ -296,8 +301,8 @@ func NewRedditStockMentionsTool(cfg *config.Config) tool.BaseTool {
 						result.WriteString(fmt.Sprintf("**Created:** %s\n", post.CreatedAt.Format("2006-01-02 15:04")))
 						result.WriteString(fmt.Sprintf("**URL:** %s\n", post.URL))
 
-						if post.Content != "" && len(post.Content) > 250 {
-							result.WriteString(fmt.Sprintf("**Content Preview:** %s...\n", post.Content[:250]))
+						if post.Content != "" && len(post.Content) > 180 {
+							result.WriteString(fmt.Sprintf("**Content Preview:** %s...\n", post.Content[:180]))
 						} else if post.Content != "" {
 							result.WriteString(fmt.Sprintf("**Content:** %s\n", post.Content))
 						}
@@ -358,11 +363,8 @@ func NewRedditFinanceNewsTool(cfg *config.Config) tool.BaseTool {
 		},
 		func(ctx context.Context, input models.FinanceNewsInput) (*models.RedditOutput, error) {
 			limit := input.Limit
-			if limit <= 0 {
-				limit = 50
-			}
-			if limit > 200 {
-				limit = 200
+			if limit <= 0 || limit > 8 {
+				limit = 8
 			}
 
 			// Create Reddit client
@@ -375,6 +377,9 @@ func NewRedditFinanceNewsTool(cfg *config.Config) tool.BaseTool {
 			}
 
 			log.Printf("Retrieved %d popular finance posts", len(posts))
+			if len(posts) > limit {
+				posts = posts[:limit]
+			}
 
 			// Format results
 			var result strings.Builder
@@ -406,8 +411,8 @@ func NewRedditFinanceNewsTool(cfg *config.Config) tool.BaseTool {
 					}
 				}
 
-				// Show top 10
-				maxTop := 10
+				// Show top posts (capped)
+				maxTop := 5
 				if len(topPosts) < maxTop {
 					maxTop = len(topPosts)
 				}
@@ -420,8 +425,8 @@ func NewRedditFinanceNewsTool(cfg *config.Config) tool.BaseTool {
 					result.WriteString(fmt.Sprintf("**Created:** %s | **URL:** %s\n",
 						post.CreatedAt.Format("2006-01-02 15:04"), post.URL))
 
-					if post.Content != "" && len(post.Content) > 200 {
-						result.WriteString(fmt.Sprintf("**Preview:** %s...\n", post.Content[:200]))
+					if post.Content != "" && len(post.Content) > 160 {
+						result.WriteString(fmt.Sprintf("**Preview:** %s...\n", post.Content[:160]))
 					}
 
 					result.WriteString("\n")

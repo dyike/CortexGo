@@ -78,6 +78,12 @@ You have access to the following tools:
 - get_reddit_stock_mentions: Find Reddit posts mentioning a specific stock symbol across finance-related subreddits
 - get_reddit_finance_news: Get popular posts from major finance-related subreddits for market sentiment and news
 
+Please follow these guardrails to prevent context overruns:
+- Use at most 3 tool calls in total; prefer combining signals inside one call when possible.
+- Keep tool parameters tight (e.g., limit <= 6) and focus on the past week unless there is breaking news.
+- Summarize tool outputs in your own words; do not paste long raw Reddit content. Each insight should fit within 2 sentences.
+- Highlight actionable sentiment shifts and notable engagement metrics instead of exhaustive listings.
+
 {system_message}
 
 For your reference, the current date is {current_date}. The current company we want to analyze is {ticker}".
