@@ -70,7 +70,10 @@ func loadBullResearcherMessages(ctx context.Context, name string, opts ...any) (
 		// 	pastMemoryStr.WriteString(fmt.Sprintf("%d. %s\n\n", i+1, rec.Recommendation))
 		// }
 
-		ptl, _ := utils.LoadPrompt("researchers/bull_resarcher")
+		ptl, err := utils.LoadPrompt("researchers/bull_researcher")
+		if err != nil {
+			return err
+		}
 		// 创建prompt模板
 		promptTemp := prompt.FromMessages(schema.FString,
 			schema.UserMessage(ptl),

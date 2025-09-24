@@ -29,7 +29,10 @@ func NewBearResearcherNode[I, O any](ctx context.Context, cfg *config.Config) *c
 
 func loadBearResearcherMessages(ctx context.Context, name string, opts ...any) (output []*schema.Message, err error) {
 	err = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		ptl, _ := utils.LoadPrompt("researchers/bear_resarcher")
+		ptl, err := utils.LoadPrompt("researchers/bear_researcher")
+		if err != nil {
+			return err
+		}
 
 		// 创建prompt模板
 		promptTemp := prompt.FromMessages(schema.FString,
