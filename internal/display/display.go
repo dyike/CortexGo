@@ -48,21 +48,21 @@ func (d *ResultsDisplay) showHeader() {
 func (d *ResultsDisplay) showExecutiveSummary(state *models.TradingState) {
 	fmt.Println("📈 EXECUTIVE SUMMARY")
 	fmt.Println("══════════════════════════════════════════════════════════════════════════")
-	
+
 	// Extract recommendation from final decision
 	recommendation := d.extractRecommendation(state.FinalTradeDecision)
 	emoji := d.getRecommendationEmoji(recommendation)
-	
+
 	fmt.Printf("🎯 FINAL RECOMMENDATION: %s %s\n", emoji, recommendation)
 	fmt.Printf("📅 Analysis Date: %s\n", state.TradeDate)
 	fmt.Printf("🏢 Company: %s\n", state.CompanyOfInterest)
-	
+
 	if state.WorkflowComplete {
 		fmt.Println("✅ Analysis Status: Complete")
 	} else {
 		fmt.Println("⏳ Analysis Status: In Progress")
 	}
-	
+
 	fmt.Println()
 }
 
@@ -70,12 +70,12 @@ func (d *ResultsDisplay) showExecutiveSummary(state *models.TradingState) {
 func (d *ResultsDisplay) showMarketAnalysis(state *models.TradingState) {
 	fmt.Println("📊 MARKET ANALYSIS")
 	fmt.Println("══════════════════════════════════════════════════════════════════════════")
-	
+
 	d.showSection("Market Research", state.MarketReport, "📈")
 	d.showSection("Social Sentiment", state.SocialReport, "💬")
 	d.showSection("News Analysis", state.NewsReport, "📰")
 	d.showSection("Fundamentals", state.FundamentalsReport, "🏛️")
-	
+
 	fmt.Println()
 }
 
@@ -83,28 +83,28 @@ func (d *ResultsDisplay) showMarketAnalysis(state *models.TradingState) {
 func (d *ResultsDisplay) showResearchDebate(state *models.TradingState) {
 	fmt.Println("⚖️  RESEARCH DEBATE")
 	fmt.Println("══════════════════════════════════════════════════════════════════════════")
-	
+
 	if state.InvestmentDebateState != nil {
 		debate := state.InvestmentDebateState
-		
+
 		fmt.Printf("🐂 Bull Arguments:\n")
 		d.displayDebateHistory(debate.BullHistory, "   ")
-		
+
 		fmt.Printf("🐻 Bear Arguments:\n")
 		d.displayDebateHistory(debate.BearHistory, "   ")
-		
+
 		fmt.Printf("👨‍⚖️ Portfolio Manager Decision:\n")
 		if debate.JudgeDecision != "" {
 			d.displayWrappedText(debate.JudgeDecision, "   ")
 		} else {
 			fmt.Println("   (Decision pending)")
 		}
-		
+
 		fmt.Printf("💭 Debate Rounds: %d\n", debate.Count)
 	} else {
 		fmt.Println("   (No debate data available)")
 	}
-	
+
 	fmt.Println()
 }
 
@@ -112,32 +112,32 @@ func (d *ResultsDisplay) showResearchDebate(state *models.TradingState) {
 func (d *ResultsDisplay) showRiskAssessment(state *models.TradingState) {
 	fmt.Println("⚠️  RISK ASSESSMENT")
 	fmt.Println("══════════════════════════════════════════════════════════════════════════")
-	
+
 	if state.RiskDebateState != nil {
 		risk := state.RiskDebateState
-		
+
 		fmt.Printf("🔥 Risky Analyst View:\n")
 		d.displayDebateHistory(risk.RiskyHistory, "   ")
-		
+
 		fmt.Printf("🛡️  Safe Analyst View:\n")
 		d.displayDebateHistory(risk.SafeHistory, "   ")
-		
+
 		fmt.Printf("⚖️  Neutral Analyst View:\n")
 		d.displayDebateHistory(risk.NeutralHistory, "   ")
-		
+
 		fmt.Printf("👨‍⚖️ Risk Manager Decision:\n")
 		if risk.JudgeDecision != "" {
 			d.displayWrappedText(risk.JudgeDecision, "   ")
 		} else {
 			fmt.Println("   (Decision pending)")
 		}
-		
+
 		fmt.Printf("💭 Risk Discussion Rounds: %d\n", risk.Count)
 		fmt.Printf("🗣️  Last Speaker: %s\n", risk.LatestSpeaker)
 	} else {
 		fmt.Println("   (No risk assessment data available)")
 	}
-	
+
 	fmt.Println()
 }
 
@@ -145,21 +145,21 @@ func (d *ResultsDisplay) showRiskAssessment(state *models.TradingState) {
 func (d *ResultsDisplay) showFinalRecommendation(state *models.TradingState) {
 	fmt.Println("🎯 FINAL RECOMMENDATION & REASONING")
 	fmt.Println("══════════════════════════════════════════════════════════════════════════")
-	
+
 	if state.FinalTradeDecision != "" {
 		recommendation := d.extractRecommendation(state.FinalTradeDecision)
 		emoji := d.getRecommendationEmoji(recommendation)
-		
+
 		fmt.Printf("%s RECOMMENDATION: %s\n\n", emoji, recommendation)
-		
+
 		fmt.Println("📝 DETAILED REASONING:")
 		d.displayWrappedText(state.FinalTradeDecision, "   ")
-		
+
 		if state.TraderInvestmentPlan != "" {
 			fmt.Println("\n💼 TRADING PLAN:")
 			d.displayWrappedText(state.TraderInvestmentPlan, "   ")
 		}
-		
+
 		if state.InvestmentPlan != "" {
 			fmt.Println("\n📋 INVESTMENT STRATEGY:")
 			d.displayWrappedText(state.InvestmentPlan, "   ")
@@ -167,7 +167,7 @@ func (d *ResultsDisplay) showFinalRecommendation(state *models.TradingState) {
 	} else {
 		fmt.Println("   (Final recommendation not yet available)")
 	}
-	
+
 	fmt.Println()
 }
 
@@ -199,7 +199,7 @@ func (d *ResultsDisplay) displayDebateHistory(history, indent string) {
 		fmt.Printf("%s(No arguments recorded)\n", indent)
 		return
 	}
-	
+
 	// Split by analyst names and format
 	lines := strings.Split(history, "\n")
 	for _, line := range lines {
@@ -207,7 +207,7 @@ func (d *ResultsDisplay) displayDebateHistory(history, indent string) {
 		if line == "" {
 			continue
 		}
-		
+
 		// Add indentation and word wrap
 		d.displayWrappedText(line, indent)
 	}
@@ -221,7 +221,7 @@ func (d *ResultsDisplay) displayWrappedText(text, indent string) {
 	if len(words) == 0 {
 		return
 	}
-	
+
 	line := indent + words[0]
 	for i := 1; i < len(words); i++ {
 		if len(line)+1+len(words[i]) > maxWidth {
@@ -239,7 +239,7 @@ func (d *ResultsDisplay) displayWrappedText(text, indent string) {
 // extractRecommendation extracts the recommendation from the decision text
 func (d *ResultsDisplay) extractRecommendation(decision string) string {
 	decision = strings.ToUpper(decision)
-	
+
 	if strings.Contains(decision, "BUY") {
 		return "BUY"
 	} else if strings.Contains(decision, "SELL") {
@@ -247,7 +247,7 @@ func (d *ResultsDisplay) extractRecommendation(decision string) string {
 	} else if strings.Contains(decision, "HOLD") {
 		return "HOLD"
 	}
-	
+
 	return "PENDING"
 }
 
@@ -269,13 +269,13 @@ func (d *ResultsDisplay) getRecommendationEmoji(recommendation string) string {
 func DisplayProgress(phase string, progress int, total int) {
 	barWidth := 40
 	filledWidth := (progress * barWidth) / total
-	
+
 	bar := strings.Repeat("█", filledWidth) + strings.Repeat("░", barWidth-filledWidth)
 	percentage := (progress * 100) / total
-	
-	fmt.Printf("\r🔄 %s [%s] %d%% (%d/%d)", 
+
+	fmt.Printf("\r🔄 %s [%s] %d%% (%d/%d)",
 		phase, bar, percentage, progress, total)
-	
+
 	if progress >= total {
 		fmt.Println(" ✅")
 	}
@@ -303,9 +303,7 @@ func DisplayInfo(message string) {
 	fmt.Printf("ℹ️  %s\n", message)
 }
 
-// SaveResultsToFile saves analysis results to a JSON file
-func (d *ResultsDisplay) SaveResultsToFile(state *models.TradingState, filepath string) error {
-	// Create a simplified result structure for JSON export
+func (d *ResultsDisplay) buildExportPayload(state *models.TradingState) map[string]interface{} {
 	result := map[string]interface{}{
 		"metadata": map[string]string{
 			"symbol":           state.CompanyOfInterest,
@@ -313,9 +311,9 @@ func (d *ResultsDisplay) SaveResultsToFile(state *models.TradingState, filepath 
 			"generated_at":     time.Now().Format(time.RFC3339),
 			"cortexgo_version": "1.0.0",
 		},
-		"recommendation": d.extractRecommendation(state.FinalTradeDecision),
-		"final_decision": state.FinalTradeDecision,
-		"trading_plan":   state.TraderInvestmentPlan,
+		"recommendation":  d.extractRecommendation(state.FinalTradeDecision),
+		"final_decision":  state.FinalTradeDecision,
+		"trading_plan":    state.TraderInvestmentPlan,
 		"investment_plan": state.InvestmentPlan,
 		"analysis": map[string]string{
 			"market_report":       state.MarketReport,
@@ -326,18 +324,16 @@ func (d *ResultsDisplay) SaveResultsToFile(state *models.TradingState, filepath 
 		"debate": nil,
 		"risk":   nil,
 	}
-	
-	// Add debate information if available
+
 	if state.InvestmentDebateState != nil {
 		result["debate"] = map[string]interface{}{
-			"bull_arguments":  state.InvestmentDebateState.BullHistory,
-			"bear_arguments":  state.InvestmentDebateState.BearHistory,
-			"judge_decision":  state.InvestmentDebateState.JudgeDecision,
-			"rounds":          state.InvestmentDebateState.Count,
+			"bull_arguments": state.InvestmentDebateState.BullHistory,
+			"bear_arguments": state.InvestmentDebateState.BearHistory,
+			"judge_decision": state.InvestmentDebateState.JudgeDecision,
+			"rounds":         state.InvestmentDebateState.Count,
 		}
 	}
-	
-	// Add risk assessment if available
+
 	if state.RiskDebateState != nil {
 		result["risk"] = map[string]interface{}{
 			"risky_view":     state.RiskDebateState.RiskyHistory,
@@ -348,15 +344,27 @@ func (d *ResultsDisplay) SaveResultsToFile(state *models.TradingState, filepath 
 			"rounds":         state.RiskDebateState.Count,
 		}
 	}
-	
-	// Convert to JSON with indentation
-	jsonData, err := json.MarshalIndent(result, "", "  ")
+
+	return result
+}
+
+func (d *ResultsDisplay) SerializeResults(state *models.TradingState) ([]byte, error) {
+	payload := d.buildExportPayload(state)
+
+	jsonData, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal results to JSON: %w", err)
+		return nil, fmt.Errorf("failed to marshal results to JSON: %w", err)
 	}
-	
-	// Write to file would be implemented here
-	// For now, just return success
-	_ = jsonData
+
+	return jsonData, nil
+}
+
+// SaveResultsToFile saves analysis results to a JSON file
+func (d *ResultsDisplay) SaveResultsToFile(state *models.TradingState, filepath string) error {
+	_, err := d.SerializeResults(state)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
