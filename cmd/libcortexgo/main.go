@@ -124,4 +124,9 @@ func CortexGoFree(ptr *C.char) {
 	}
 }
 
+//export CortexGoVersion
+func CortexGoVersion() *C.char {
+	return C.CString("v.0.0.1")
+}
+
 func main() {}

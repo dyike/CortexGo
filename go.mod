@@ -10,7 +10,6 @@ require (
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/joho/godotenv v1.5.1
 	github.com/longportapp/openapi-go v0.16.3
-	github.com/piquette/finance-go v1.1.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/cobra v1.9.1
 )
