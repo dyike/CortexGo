@@ -25,10 +25,6 @@ func NewRootCmd() *cobra.Command {
 		Long: `CortexGo is an advanced multi-agent trading analysis system powered by Large Language Models.
 It provides comprehensive market analysis, research, and risk assessment for informed trading decisions.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			// Ensure directories exist
-			if err := cfg.EnsureDirectories(); err != nil {
-				return fmt.Errorf("failed to create directories: %w", err)
-			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -219,7 +215,7 @@ func runAnalyzeCommand(cfg *config.Config, symbol, date string) error {
 
 	// Create enhanced analysis session
 	analysisSession := NewAnalysisSession(cfg, symbol, date)
-	
+
 	// Run analysis with progress tracking
 	if err := analysisSession.ExecuteWithProgress(); err != nil {
 		display.DisplayError(err, "analysis execution")
@@ -237,9 +233,9 @@ func runAnalyzeCommand(cfg *config.Config, symbol, date string) error {
 	}
 
 	display.DisplaySuccess("Analysis completed successfully!")
-	display.DisplayInfo(fmt.Sprintf("Results saved to: %s/%s_%s_analysis.json", 
+	display.DisplayInfo(fmt.Sprintf("Results saved to: %s/%s_%s_analysis.json",
 		cfg.ResultsDir, symbol, date))
-	
+
 	return nil
 }
 
@@ -485,8 +481,8 @@ func listResults(cfg *config.Config) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("📊 Total: %d results, %.1fMB\n", 
-		len(results), 
+	fmt.Printf("📊 Total: %d results, %.1fMB\n",
+		len(results),
 		float64(getTotalSize(results))/1024/1024)
 	fmt.Println("💡 Use 'cortexgo results show <SYMBOL> <DATE>' for details")
 
@@ -503,7 +499,7 @@ func showResults(cfg *config.Config, symbol, date string) error {
 func exportResults(cfg *config.Config, symbol, date, format string) error {
 	validFormats := []string{"json", "csv", "txt"}
 	format = strings.ToLower(format)
-	
+
 	// Validate format
 	valid := false
 	for _, f := range validFormats {
@@ -512,23 +508,23 @@ func exportResults(cfg *config.Config, symbol, date, format string) error {
 			break
 		}
 	}
-	
+
 	if !valid {
-		return fmt.Errorf("invalid format '%s'. Supported formats: %s", 
+		return fmt.Errorf("invalid format '%s'. Supported formats: %s",
 			format, strings.Join(validFormats, ", "))
 	}
-	
+
 	display.DisplayInfo(fmt.Sprintf("Exporting %s analysis from %s to %s format", symbol, date, format))
-	
+
 	rm := NewResultsManager(cfg)
 	if err := rm.ExportResults(symbol, date, format); err != nil {
 		display.DisplayError(err, "exporting results")
 		return err
 	}
-	
+
 	outputFile := fmt.Sprintf("%s/%s_%s_analysis.%s", cfg.ResultsDir, symbol, date, format)
 	display.DisplaySuccess(fmt.Sprintf("Results exported to: %s", outputFile))
-	
+
 	return nil
 }
 
@@ -541,12 +537,12 @@ func deleteResult(cfg *config.Config, symbol, date string) error {
 // cleanupResults cleans up old analysis results
 func cleanupResults(cfg *config.Config, maxDays, maxCount int) error {
 	rm := NewResultsManager(cfg)
-	
+
 	var maxAge time.Duration
 	if maxDays > 0 {
 		maxAge = time.Duration(maxDays) * 24 * time.Hour
 	}
-	
+
 	display.DisplayInfo("Cleaning up old analysis results...")
 	return rm.CleanupResults(maxAge, maxCount)
 }
@@ -567,11 +563,11 @@ func showResultsStats(cfg *config.Config) error {
 
 	// Calculate statistics
 	stats := calculateResultsStats(results)
-	
+
 	// Display statistics
 	display.DisplayInfo("Analysis Results Statistics:")
 	fmt.Println("═══════════════════════════════════════════════════════════════")
-	
+
 	fmt.Printf("📊 OVERVIEW:\n")
 	fmt.Printf("  Total Results:        %d\n", stats.TotalResults)
 	fmt.Printf("  Total Size:           %.1f MB\n", float64(stats.TotalSize)/1024/1024)
@@ -595,7 +591,7 @@ func showResultsStats(cfg *config.Config) error {
 		count := stats.SymbolCounts[symbol]
 		fmt.Printf("  %-10s: %d analysis\n", symbol, count)
 	}
-	
+
 	if len(stats.TopSymbols) > 10 {
 		fmt.Printf("  ... and %d more\n", len(stats.TopSymbols)-10)
 	}
@@ -610,7 +606,7 @@ func showResultsStats(cfg *config.Config) error {
 		}
 	}
 	fmt.Printf("  Last 7 days:          %d analyses\n", recentCount)
-	
+
 	monthAgo := time.Now().AddDate(0, -1, 0)
 	monthCount := 0
 	for _, result := range results {
@@ -625,13 +621,13 @@ func showResultsStats(cfg *config.Config) error {
 
 // ResultsStats holds statistics about analysis results
 type ResultsStats struct {
-	TotalResults        int
-	TotalSize          int64
-	OldestDate         string
-	NewestDate         string
+	TotalResults         int
+	TotalSize            int64
+	OldestDate           string
+	NewestDate           string
 	RecommendationCounts map[string]int
-	SymbolCounts       map[string]int
-	TopSymbols         []string
+	SymbolCounts         map[string]int
+	TopSymbols           []string
 }
 
 // calculateResultsStats calculates statistics from results
@@ -639,7 +635,7 @@ func calculateResultsStats(results []ResultSummary) ResultsStats {
 	stats := ResultsStats{
 		TotalResults:         len(results),
 		RecommendationCounts: make(map[string]int),
-		SymbolCounts:        make(map[string]int),
+		SymbolCounts:         make(map[string]int),
 	}
 
 	if len(results) == 0 {
@@ -662,16 +658,16 @@ func calculateResultsStats(results []ResultSummary) ResultsStats {
 		symbol string
 		count  int
 	}
-	
+
 	var symbolCounts []symbolCount
 	for symbol, count := range stats.SymbolCounts {
 		symbolCounts = append(symbolCounts, symbolCount{symbol, count})
 	}
-	
+
 	sort.Slice(symbolCounts, func(i, j int) bool {
 		return symbolCounts[i].count > symbolCounts[j].count
 	})
-	
+
 	for _, sc := range symbolCounts {
 		stats.TopSymbols = append(stats.TopSymbols, sc.symbol)
 	}
@@ -694,62 +690,62 @@ func getTotalSize(results []ResultSummary) int64 {
 func validateConfigEnhanced(cfg *config.Config) error {
 	cm := NewConfigManager(cfg)
 	warnings := cm.ValidateConfiguration()
-	
+
 	display.DisplayInfo("Validating CortexGo Configuration...")
 	fmt.Println("═══════════════════════════════════════")
-	
+
 	if len(warnings) == 0 {
 		display.DisplaySuccess("Configuration validation passed!")
 		display.DisplayInfo("All settings are properly configured")
 		return nil
 	}
-	
+
 	fmt.Printf("⚠️  Found %d configuration issues:\n", len(warnings))
 	for i, warning := range warnings {
 		fmt.Printf("  %d. %s\n", i+1, warning)
 	}
-	
+
 	fmt.Println("\n💡 Configuration Tips:")
 	fmt.Println("  • Use 'cortexgo config set <key> <value>' to update settings")
 	fmt.Println("  • Use 'cortexgo config list' to see all available keys")
 	fmt.Println("  • Set environment variables for API keys")
-	
+
 	return nil
 }
 
 // setConfigValue sets a configuration value
 func setConfigValue(cfg *config.Config, key, value string) error {
 	cm := NewConfigManager(cfg)
-	
+
 	oldValue, _ := cm.GetConfigValue(key)
-	
+
 	if err := cm.SetConfigValue(key, value); err != nil {
 		display.DisplayError(err, "setting configuration value")
 		return err
 	}
-	
+
 	display.DisplaySuccess(fmt.Sprintf("Updated %s: %v → %s", key, oldValue, value))
-	
+
 	// Auto-save after successful update
 	if err := cm.SaveConfig(); err != nil {
 		display.DisplayWarning("Configuration updated but could not save to file")
 	} else {
 		display.DisplayInfo("Configuration saved to file")
 	}
-	
+
 	return nil
 }
 
 // getConfigValue gets a configuration value
 func getConfigValue(cfg *config.Config, key string) error {
 	cm := NewConfigManager(cfg)
-	
+
 	value, err := cm.GetConfigValue(key)
 	if err != nil {
 		display.DisplayError(err, "getting configuration value")
 		return err
 	}
-	
+
 	fmt.Printf("📋 %s: %v\n", key, value)
 	return nil
 }
@@ -758,15 +754,15 @@ func getConfigValue(cfg *config.Config, key string) error {
 func listConfigKeys(cfg *config.Config) {
 	cm := NewConfigManager(cfg)
 	keys := cm.ListAvailableKeys()
-	
+
 	display.DisplayInfo("Available Configuration Keys:")
 	fmt.Println("═══════════════════════════════════════")
-	
+
 	for _, key := range keys {
 		value, _ := cm.GetConfigValue(key)
 		fmt.Printf("  %-20s: %v\n", key, value)
 	}
-	
+
 	fmt.Println("\n💡 Usage:")
 	fmt.Println("  cortexgo config get <key>")
 	fmt.Println("  cortexgo config set <key> <value>")
@@ -775,12 +771,12 @@ func listConfigKeys(cfg *config.Config) {
 // saveConfig saves current configuration to file
 func saveConfig(cfg *config.Config) error {
 	cm := NewConfigManager(cfg)
-	
+
 	if err := cm.SaveConfig(); err != nil {
 		display.DisplayError(err, "saving configuration")
 		return err
 	}
-	
+
 	display.DisplaySuccess("Configuration saved to cortexgo.json")
 	return nil
 }
@@ -788,36 +784,36 @@ func saveConfig(cfg *config.Config) error {
 // loadConfig loads configuration from file
 func loadConfig(cfg *config.Config) error {
 	cm := NewConfigManager(cfg)
-	
+
 	if err := cm.LoadConfig(); err != nil {
 		display.DisplayError(err, "loading configuration")
 		return err
 	}
-	
+
 	return nil
 }
 
 // resetConfig resets configuration to defaults
 func resetConfig(cfg *config.Config) error {
 	cm := NewConfigManager(cfg)
-	
+
 	if err := cm.ResetConfig(); err != nil {
 		display.DisplayError(err, "resetting configuration")
 		return err
 	}
-	
+
 	return nil
 }
 
 // exportConfig exports configuration to specified file
 func exportConfig(cfg *config.Config, filename string) error {
 	cm := NewConfigManager(cfg)
-	
+
 	if err := cm.ExportConfig(filename); err != nil {
 		display.DisplayError(err, "exporting configuration")
 		return err
 	}
-	
+
 	display.DisplaySuccess(fmt.Sprintf("Configuration exported to %s", filename))
 	return nil
 }
@@ -825,12 +821,12 @@ func exportConfig(cfg *config.Config, filename string) error {
 // importConfig imports configuration from specified file
 func importConfig(cfg *config.Config, filename string) error {
 	cm := NewConfigManager(cfg)
-	
+
 	if err := cm.ImportConfig(filename); err != nil {
 		display.DisplayError(err, "importing configuration")
 		return err
 	}
-	
+
 	display.DisplaySuccess(fmt.Sprintf("Configuration imported from %s", filename))
 	return nil
 }
@@ -931,11 +927,11 @@ func runBatchAnalyze(cfg *config.Config, args []string, date string, concurrent 
 
 	// Validate symbols
 	validSymbols, invalidSymbols := bm.ValidateSymbols(symbols)
-	
+
 	if len(invalidSymbols) > 0 {
 		display.DisplayWarning(fmt.Sprintf("Invalid symbols (skipped): %s", strings.Join(invalidSymbols, ", ")))
 	}
-	
+
 	if len(validSymbols) == 0 {
 		return fmt.Errorf("no valid symbols to analyze")
 	}
@@ -945,11 +941,11 @@ func runBatchAnalyze(cfg *config.Config, args []string, date string, concurrent 
 	// Estimate duration and ask for confirmation
 	estimatedDuration := bm.EstimateBatchDuration(len(validSymbols), concurrent)
 	display.DisplayInfo(fmt.Sprintf("Estimated completion time: %s", estimatedDuration.Round(time.Minute)))
-	
+
 	fmt.Printf("Continue with batch analysis? (y/N): ")
 	var response string
 	fmt.Scanln(&response)
-	
+
 	if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
 		display.DisplayInfo("Batch analysis cancelled")
 		return nil
@@ -980,7 +976,7 @@ func runBatchEstimate(cfg *config.Config, args []string, concurrent int, filenam
 
 	// Validate symbols
 	validSymbols, invalidSymbols := bm.ValidateSymbols(symbols)
-	
+
 	fmt.Println("╔═══════════════════════════════════════════════════════════════╗")
 	fmt.Println("║                    BATCH ANALYSIS ESTIMATE                    ║")
 	fmt.Println("╚═══════════════════════════════════════════════════════════════╝")
@@ -988,17 +984,17 @@ func runBatchEstimate(cfg *config.Config, args []string, concurrent int, filenam
 
 	display.DisplayInfo(fmt.Sprintf("Total symbols provided: %d", len(symbols)))
 	display.DisplaySuccess(fmt.Sprintf("Valid symbols: %d", len(validSymbols)))
-	
+
 	if len(invalidSymbols) > 0 {
 		display.DisplayWarning(fmt.Sprintf("Invalid symbols: %d (%s)", len(invalidSymbols), strings.Join(invalidSymbols, ", ")))
 	}
 
 	if len(validSymbols) > 0 {
 		display.DisplayInfo(fmt.Sprintf("Concurrent analyses: %d", concurrent))
-		
+
 		estimatedDuration := bm.EstimateBatchDuration(len(validSymbols), concurrent)
 		display.DisplayInfo(fmt.Sprintf("Estimated total time: %s", estimatedDuration.Round(time.Minute)))
-		
+
 		avgPerSymbol := estimatedDuration / time.Duration(len(validSymbols))
 		display.DisplayInfo(fmt.Sprintf("Average time per symbol: %s", avgPerSymbol.Round(time.Second)))
 
@@ -1041,6 +1037,6 @@ CRM
 
 	display.DisplaySuccess(fmt.Sprintf("Symbol template created: %s", filename))
 	display.DisplayInfo("Edit the file to add your desired symbols, then use: cortexgo batch analyze -f " + filename)
-	
+
 	return nil
 }
