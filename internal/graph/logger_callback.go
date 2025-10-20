@@ -18,12 +18,12 @@ import (
 type LoggerCallback struct {
 	callbacks.HandlerBuilder
 
-	Out chan string
+	Emit func(event string, data *models.ChatResp)
 }
 
 func (cb *LoggerCallback) pushF(ctx context.Context, event string, data *models.ChatResp) error {
-	if cb.Out != nil {
-		cb.Out <- data.Content
+	if cb.Emit != nil && data != nil {
+		cb.Emit(event, data)
 	}
 	return nil
 }
@@ -94,10 +94,11 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 
 func (cb *LoggerCallback) OnStart(ctx context.Context, info *callbacks.RunInfo, input callbacks.CallbackInput) context.Context {
 	if inputStr, ok := input.(string); ok {
-		if cb.Out != nil {
-			cb.Out <- "\n==================\n"
-			cb.Out <- fmt.Sprintf(" [OnStart] %s ", inputStr)
-			cb.Out <- "\n==================\n"
+		if cb.Emit != nil {
+			cb.Emit("run_start", &models.ChatResp{
+				Role:    "system",
+				Content: fmt.Sprintf("[OnStart] %s", inputStr),
+			})
 		}
 	}
 	return ctx
@@ -113,6 +114,12 @@ func (cb *LoggerCallback) OnEnd(ctx context.Context, info *callbacks.RunInfo, ou
 func (cb *LoggerCallback) OnError(ctx context.Context, info *callbacks.RunInfo, err error) context.Context {
 	fmt.Println("=========[OnError]=========")
 	fmt.Println(err)
+	if cb.Emit != nil {
+		cb.Emit("error", &models.ChatResp{
+			Role:    "system",
+			Content: err.Error(),
+		})
+	}
 	return ctx
 }
 

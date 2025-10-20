@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/eino/compose"
@@ -14,11 +15,30 @@ type TradingAgentsGraph struct {
 	config       *config.Config
 	orchestrator compose.Runnable[*models.TradingState, *models.TradingState]
 	debug        bool
+	emit         func(event string, data *models.ChatResp)
 }
 
 func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
+	return NewTradingAgentsGraphWithEmitter(debug, cfg, nil)
+}
+
+func NewTradingAgentsGraphWithEmitter(debug bool, cfg *config.Config, emit func(string, *models.ChatResp)) *TradingAgentsGraph {
 	if cfg == nil {
 		cfg = config.DefaultConfig()
+	}
+
+	emitter := emit
+	if emitter == nil {
+		emitter = func(_ string, data *models.ChatResp) {
+			if data == nil {
+				return
+			}
+			txt := data.Content
+			if strings.TrimSpace(txt) == "" {
+				return
+			}
+			fmt.Print(txt)
+		}
 	}
 
 	ctx := context.Background()
@@ -35,6 +55,7 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 		config:       cfg,
 		orchestrator: orchestrator,
 		debug:        debug,
+		emit:         emitter,
 	}
 }
 
@@ -52,17 +73,9 @@ func (g *TradingAgentsGraph) Propagate(symbol string, date string) (*models.Trad
 		fmt.Printf("Processing %s for date %s using eino orchestrator\n", symbol, date)
 	}
 
-	// Add logger callback
-	outChan := make(chan string)
-	go func() {
-		for out := range outChan {
-			fmt.Print(out)
-		}
-	}()
-
 	_, err = g.orchestrator.Stream(ctx, state,
 		compose.WithCallbacks(&LoggerCallback{
-			Out: outChan,
+			Emit: g.emit,
 		}),
 	)
 	if err != nil {

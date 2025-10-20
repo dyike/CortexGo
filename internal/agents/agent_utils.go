@@ -2,6 +2,7 @@ package agents
 
 import (
 	"context"
+	"sync"
 
 	"github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/schema"
@@ -10,9 +11,21 @@ import (
 
 var (
 	ChatModel *openai.ChatModel
+	chatMu    sync.Mutex
 )
 
-func InitChatModel(ctx context.Context, cfg *config.Config) {
+func InitChatModel(ctx context.Context, cfg *config.Config) error {
+	if ChatModel != nil {
+		return nil
+	}
+
+	chatMu.Lock()
+	defer chatMu.Unlock()
+
+	if ChatModel != nil {
+		return nil
+	}
+
 	maxTokens := 8192
 	chatModel, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		BaseURL:   "https://api.deepseek.com/v1",
@@ -21,9 +34,10 @@ func InitChatModel(ctx context.Context, cfg *config.Config) {
 		MaxTokens: &maxTokens,
 	})
 	if err != nil {
-		panic(err)
+		return err
 	}
 	ChatModel = chatModel
+	return nil
 }
 
 func ToolCallChecker(ctx context.Context, sr *schema.StreamReader[*schema.Message]) (bool, error) {

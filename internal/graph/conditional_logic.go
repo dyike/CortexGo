@@ -9,40 +9,43 @@ import (
 	"github.com/dyike/CortexGo/internal/models"
 )
 
-func ShouldContinueDebate(ctx context.Context, input string) (next string, err error) {
-	next = consts.BullResearcher
-	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		if state.InvestmentDebateState.Count >= 2 {
-			next = consts.ResearchManager
-			return nil
-		}
-		curResp := state.InvestmentDebateState.CurrentResponse
-		if strings.HasPrefix(curResp, "Bull") {
-			next = consts.BearResearcher
-			return nil
-		}
+func ShouldContinueDebate(ctx context.Context, _ string) (string, error) {
+	var state *models.TradingState
+	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, s *models.TradingState) error {
+		state = s
 		return nil
 	})
-	return next, nil
+	if state == nil || state.InvestmentDebateState == nil {
+		return consts.BullResearcher, nil
+	}
+	if state.InvestmentDebateState.Count >= 2 {
+		return consts.ResearchManager, nil
+	}
+	curResp := state.InvestmentDebateState.CurrentResponse
+	if strings.HasPrefix(curResp, "Bull") {
+		return consts.BearResearcher, nil
+	}
+	return consts.BullResearcher, nil
 }
 
-func ShouldContinueRiskAnalysis(ctx context.Context, input string) (next string, err error) {
-	next = consts.RiskyAnalyst
-	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		if state.RiskDebateState.Count >= 3 {
-			next = consts.RiskJudge
-			return nil
-		}
-		latestSpeaker := state.RiskDebateState.LatestSpeaker
-		if strings.HasPrefix(latestSpeaker, "Risky") {
-			next = consts.SafeAnalyst
-			return nil
-		}
-		if strings.HasPrefix(latestSpeaker, "Safe") {
-			next = consts.NeutralAnalyst
-			return nil
-		}
+func ShouldContinueRiskAnalysis(ctx context.Context, _ string) (string, error) {
+	var state *models.TradingState
+	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, s *models.TradingState) error {
+		state = s
 		return nil
 	})
-	return next, nil
+	if state == nil || state.RiskDebateState == nil {
+		return consts.RiskyAnalyst, nil
+	}
+	if state.RiskDebateState.Count >= 3 {
+		return consts.RiskJudge, nil
+	}
+	latestSpeaker := state.RiskDebateState.LatestSpeaker
+	if strings.HasPrefix(latestSpeaker, "Risky") {
+		return consts.SafeAnalyst, nil
+	}
+	if strings.HasPrefix(latestSpeaker, "Safe") {
+		return consts.NeutralAnalyst, nil
+	}
+	return consts.RiskyAnalyst, nil
 }

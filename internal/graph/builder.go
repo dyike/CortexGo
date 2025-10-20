@@ -6,6 +6,7 @@ import (
 	"github.com/cloudwego/eino/compose"
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/consts"
+	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/agents/analysts"
 	"github.com/dyike/CortexGo/internal/agents/managers"
 	"github.com/dyike/CortexGo/internal/agents/researchers"
@@ -14,6 +15,10 @@ import (
 )
 
 func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.GenLocalState[S], cfg *config.Config) compose.Runnable[I, O] {
+	if err := agents.InitChatModel(ctx, cfg); err != nil {
+		panic(err)
+	}
+
 	g := compose.NewGraph[I, O](
 		compose.WithGenLocalState(genFunc),
 	)

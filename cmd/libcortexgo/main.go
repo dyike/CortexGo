@@ -2,6 +2,13 @@ package main
 
 /*
 #include <stdlib.h>
+
+typedef void (*log_callback_t)(const char *msg, void *user_data);
+static inline void call_log_callback(log_callback_t cb, const char *msg, void *user_data) {
+	if (cb != NULL) {
+		cb(msg, user_data);
+	}
+}
 */
 import "C"
 
@@ -38,7 +45,50 @@ type configResponse struct {
 var (
 	cfgMu     sync.RWMutex
 	activeCfg *config.Config
+
+	logCbMu sync.RWMutex
+	logCb   C.log_callback_t
+	logCtx  unsafe.Pointer
 )
+
+func emitToRegisteredCallback(event string, data *models.ChatResp) {
+	logCbMu.RLock()
+	cb := logCb
+	ctx := logCtx
+	logCbMu.RUnlock()
+
+	if cb == nil {
+		if data == nil {
+			return
+		}
+		if strings.TrimSpace(data.Content) != "" {
+			fmt.Print(data.Content)
+		}
+		return
+	}
+
+	envelope := map[string]any{
+		"event": event,
+	}
+	if data != nil {
+		envelope["data"] = data
+	} else {
+		envelope["data"] = map[string]any{}
+	}
+
+	bytes, err := json.Marshal(envelope)
+	if err != nil {
+		fallback := map[string]any{
+			"event": "log_error",
+			"error": err.Error(),
+		}
+		bytes, _ = json.Marshal(fallback)
+	}
+
+	cstr := C.CString(string(bytes))
+	defer C.free(unsafe.Pointer(cstr))
+	C.call_log_callback(cb, cstr, ctx)
+}
 
 func goString(ptr *C.char) string {
 	if ptr == nil {
@@ -119,10 +169,6 @@ func normalizeConfig(cfg *config.Config) {
 		cfg.DataCacheDir = filepath.Join(cfg.DataDir, "cache")
 	}
 
-	if strings.TrimSpace(cfg.RedditUserAgent) == "" {
-		cfg.RedditUserAgent = "CortexGo/1.0"
-	}
-
 	if cfg.EinoDebugPort == 0 {
 		cfg.EinoDebugPort = 52538
 	}
@@ -163,7 +209,7 @@ func runAnalysis(symbol, date string) (*analysisResponse, error) {
 		return nil, err
 	}
 
-	tradingGraph := graph.NewTradingAgentsGraph(cfg.Debug, cfg)
+	tradingGraph := graph.NewTradingAgentsGraphWithEmitter(cfg.Debug, cfg, emitToRegisteredCallback)
 	state, err := tradingGraph.Propagate(symbol, date)
 	if err != nil {
 		return nil, err
@@ -215,6 +261,14 @@ func encodeAnalysisPayload(resp *analysisResponse) *C.char {
 	}
 
 	return C.CString(string(payload))
+}
+
+//export CortexGoRegisterLogCallback
+func CortexGoRegisterLogCallback(cb C.log_callback_t, user unsafe.Pointer) {
+	logCbMu.Lock()
+	logCb = cb
+	logCtx = user
+	logCbMu.Unlock()
 }
 
 //export CortexGoAnalyzeWithConfig

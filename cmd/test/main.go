@@ -25,7 +25,9 @@ func main() {
 	}
 	cfg := config.DefaultConfig()
 
-	agents.InitChatModel(ctx, cfg)
+	if err := agents.InitChatModel(ctx, cfg); err != nil {
+		panic(err)
+	}
 
 	symbol := "UI.US"
 	tradeDate := "2025-09-23"
@@ -36,16 +38,6 @@ func main() {
 	}
 	userPrompt := fmt.Sprintf("Analyze trading opportunities for %s on %s", symbol, tradeDate)
 
-	// Add logger callback
-	outChan := make(chan string)
-	go func() {
-		// for _ = range outChan {
-		// }
-		for out := range outChan {
-			fmt.Print(out)
-		}
-	}()
-
 	genFunc := func(ctx context.Context) *models.TradingState {
 		state := models.NewTradingState(symbol, parsedDate, userPrompt, cfg)
 		return state
@@ -54,7 +46,12 @@ func main() {
 	to := graph.NewTradingOrchestrator[string, string, *models.TradingState](ctx, genFunc, cfg)
 	_, err = to.Stream(ctx, "Analyze trading opportunities for UI on 2025-09-23",
 		compose.WithCallbacks(&graph.LoggerCallback{
-			Out: outChan,
+			Emit: func(event string, data *models.ChatResp) {
+				if data == nil {
+					return
+				}
+				fmt.Print(data.Content)
+			},
 		}),
 	)
 	if err != nil {
