@@ -14,6 +14,7 @@ import "C"
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,7 +50,12 @@ var (
 	logCbMu sync.RWMutex
 	logCb   C.log_callback_t
 	logCtx  unsafe.Pointer
+
+	configPathMu   sync.RWMutex
+	configFilePath string
 )
+
+const defaultConfigFilename = "cortexgo.json"
 
 func emitToRegisteredCallback(event string, data *models.ChatResp) {
 	logCbMu.RLock()
@@ -106,18 +112,13 @@ func ensureConfig() (*config.Config, error) {
 	}
 	cfgMu.RUnlock()
 
-	cfgMu.Lock()
-	defer cfgMu.Unlock()
-
-	if activeCfg == nil {
-		cfg, err := buildConfig(nil, "")
-		if err != nil {
-			return nil, err
-		}
-		activeCfg = cfg
+	cfg, err := loadInitialConfig()
+	if err != nil {
+		return nil, err
 	}
 
-	return activeCfg, nil
+	storeActiveConfig(cfg)
+	return cfg, nil
 }
 
 func buildConfig(base *config.Config, payload string) (*config.Config, error) {
@@ -178,6 +179,10 @@ func storeActiveConfig(cfg *config.Config) {
 	cfgMu.Lock()
 	activeCfg = cfg
 	cfgMu.Unlock()
+
+	if err := persistActiveConfig(cfg); err != nil {
+		fmt.Printf("failed to persist config: %v\n", err)
+	}
 }
 
 func currentConfigCopy() (*config.Config, error) {
@@ -194,6 +199,175 @@ func currentConfigCopy() (*config.Config, error) {
 
 	clone := *activeCfg
 	return &clone, nil
+}
+
+func loadInitialConfig() (*config.Config, error) {
+	if path := getConfigFilePath(); strings.TrimSpace(path) != "" {
+		return loadConfigFromFile(path)
+	}
+
+	if envPath := strings.TrimSpace(os.Getenv("CORTEXGO_CONFIG_PATH")); envPath != "" {
+		setConfigFilePathInternal(envPath)
+		return loadConfigFromFile(envPath)
+	}
+
+	if defaultPath, ok := detectDefaultConfigFile(); ok {
+		setConfigFilePathInternal(defaultPath)
+		return loadConfigFromFile(defaultPath)
+	}
+
+	return buildConfig(nil, "")
+}
+
+func loadConfigFromFile(path string) (*config.Config, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return nil, fmt.Errorf("config path is empty")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, fmt.Errorf("create config directory: %w", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			base := config.DefaultConfig()
+			if base != nil {
+				base.ProjectDir = filepath.Dir(path)
+			}
+			cfg, buildErr := buildConfig(base, "")
+			if buildErr != nil {
+				return nil, buildErr
+			}
+			if persistErr := persistConfigToPath(cfg, path); persistErr != nil {
+				return nil, persistErr
+			}
+			return cfg, nil
+		}
+		return nil, fmt.Errorf("read config file: %w", err)
+	}
+
+	base := config.DefaultConfig()
+	if base != nil {
+		base.ProjectDir = filepath.Dir(path)
+	}
+	return buildConfig(base, string(data))
+}
+
+func detectDefaultConfigFile() (string, bool) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", false
+	}
+	path := filepath.Join(cwd, defaultConfigFilename)
+	if _, err := os.Stat(path); err == nil {
+		return path, true
+	}
+	return "", false
+}
+
+func persistActiveConfig(cfg *config.Config) error {
+	if cfg == nil {
+		return nil
+	}
+
+	path := getConfigFilePath()
+	if strings.TrimSpace(path) == "" {
+		resolved, err := resolveConfigPath(cfg)
+		if err != nil {
+			return err
+		}
+		path = resolved
+	}
+
+	return persistConfigToPath(cfg, path)
+}
+
+func persistConfigToPath(cfg *config.Config, path string) error {
+	if cfg == nil {
+		return nil
+	}
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("config path is empty")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
+	}
+
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, path)
+}
+
+func resolveConfigPath(cfg *config.Config) (string, error) {
+	path := getConfigFilePath()
+	if strings.TrimSpace(path) != "" {
+		return path, nil
+	}
+
+	baseDir := strings.TrimSpace(cfg.ProjectDir)
+	if baseDir == "" {
+		var err error
+		baseDir, err = os.Getwd()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	resolved := filepath.Join(baseDir, defaultConfigFilename)
+	setConfigFilePathInternal(resolved)
+	return resolved, nil
+}
+
+func getConfigFilePath() string {
+	configPathMu.RLock()
+	path := configFilePath
+	configPathMu.RUnlock()
+	return path
+}
+
+func setConfigFilePathInternal(path string) {
+	configPathMu.Lock()
+	configFilePath = strings.TrimSpace(path)
+	configPathMu.Unlock()
+}
+
+func setConfigFilePath(path string) (*config.Config, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		setConfigFilePathInternal("")
+		cfg, err := ensureConfig()
+		if err != nil {
+			return nil, err
+		}
+		return cfg, nil
+	}
+
+	absPath := trimmed
+	if !filepath.IsAbs(absPath) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("determine working directory: %w", err)
+		}
+		absPath = filepath.Join(cwd, trimmed)
+	}
+
+	setConfigFilePathInternal(absPath)
+	cfg, err := loadConfigFromFile(absPath)
+	if err != nil {
+		return nil, err
+	}
+	storeActiveConfig(cfg)
+	return cfg, nil
 }
 
 func runAnalysis(symbol, date string) (*analysisResponse, error) {
@@ -269,6 +443,23 @@ func CortexGoRegisterLogCallback(cb C.log_callback_t, user unsafe.Pointer) {
 	logCb = cb
 	logCtx = user
 	logCbMu.Unlock()
+}
+
+//export CortexGoSetConfigPath
+func CortexGoSetConfigPath(path *C.char) *C.char {
+	goPath := goString(path)
+	cfg, err := setConfigFilePath(goPath)
+	if err != nil {
+		return encodeConfigResponse(configResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+	}
+
+	return encodeConfigResponse(configResponse{
+		Success: true,
+		Config:  cfg,
+	})
 }
 
 //export CortexGoAnalyzeWithConfig
