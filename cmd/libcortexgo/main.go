@@ -26,6 +26,7 @@ import (
 	"github.com/dyike/CortexGo/internal/display"
 	"github.com/dyike/CortexGo/internal/graph"
 	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/internal/utils"
 )
 
 type analysisResponse struct {
@@ -51,8 +52,7 @@ var (
 	logCb   C.log_callback_t
 	logCtx  unsafe.Pointer
 
-	configPathMu   sync.RWMutex
-	configFilePath string
+	configStore = utils.NewConfigStore(defaultConfigFilename)
 )
 
 const defaultConfigFilename = "cortexgo.json"
@@ -202,17 +202,21 @@ func currentConfigCopy() (*config.Config, error) {
 }
 
 func loadInitialConfig() (*config.Config, error) {
-	if path := getConfigFilePath(); strings.TrimSpace(path) != "" {
+	if path := strings.TrimSpace(configStore.Path()); path != "" {
 		return loadConfigFromFile(path)
 	}
 
 	if envPath := strings.TrimSpace(os.Getenv("CORTEXGO_CONFIG_PATH")); envPath != "" {
-		setConfigFilePathInternal(envPath)
-		return loadConfigFromFile(envPath)
+		if _, err := configStore.SetPath(envPath); err != nil {
+			return nil, err
+		}
+		return loadConfigFromFile(configStore.Path())
 	}
 
-	if defaultPath, ok := detectDefaultConfigFile(); ok {
-		setConfigFilePathInternal(defaultPath)
+	if defaultPath, ok := configStore.DetectDefault(); ok {
+		if _, err := configStore.SetPath(defaultPath); err != nil {
+			return nil, err
+		}
 		return loadConfigFromFile(defaultPath)
 	}
 
@@ -220,27 +224,23 @@ func loadInitialConfig() (*config.Config, error) {
 }
 
 func loadConfigFromFile(path string) (*config.Config, error) {
-	path = strings.TrimSpace(path)
-	if path == "" {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
 		return nil, fmt.Errorf("config path is empty")
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return nil, fmt.Errorf("create config directory: %w", err)
-	}
-
-	data, err := os.ReadFile(path)
+	data, err := configStore.Read(trimmed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			base := config.DefaultConfig()
 			if base != nil {
-				base.ProjectDir = filepath.Dir(path)
+				base.ProjectDir = filepath.Dir(trimmed)
 			}
 			cfg, buildErr := buildConfig(base, "")
 			if buildErr != nil {
 				return nil, buildErr
 			}
-			if persistErr := persistConfigToPath(cfg, path); persistErr != nil {
+			if persistErr := persistConfigToPath(cfg, trimmed); persistErr != nil {
 				return nil, persistErr
 			}
 			return cfg, nil
@@ -250,21 +250,9 @@ func loadConfigFromFile(path string) (*config.Config, error) {
 
 	base := config.DefaultConfig()
 	if base != nil {
-		base.ProjectDir = filepath.Dir(path)
+		base.ProjectDir = filepath.Dir(trimmed)
 	}
 	return buildConfig(base, string(data))
-}
-
-func detectDefaultConfigFile() (string, bool) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", false
-	}
-	path := filepath.Join(cwd, defaultConfigFilename)
-	if _, err := os.Stat(path); err == nil {
-		return path, true
-	}
-	return "", false
 }
 
 func persistActiveConfig(cfg *config.Config) error {
@@ -272,8 +260,8 @@ func persistActiveConfig(cfg *config.Config) error {
 		return nil
 	}
 
-	path := getConfigFilePath()
-	if strings.TrimSpace(path) == "" {
+	path := strings.TrimSpace(configStore.Path())
+	if path == "" {
 		resolved, err := resolveConfigPath(cfg)
 		if err != nil {
 			return err
@@ -292,53 +280,28 @@ func persistConfigToPath(cfg *config.Config, path string) error {
 		return fmt.Errorf("config path is empty")
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create config directory: %w", err)
-	}
-
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	tmpPath := path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmpPath, path)
+	return configStore.Write(path, data)
 }
 
 func resolveConfigPath(cfg *config.Config) (string, error) {
-	path := getConfigFilePath()
-	if strings.TrimSpace(path) != "" {
-		return path, nil
+	baseDir := ""
+	if cfg != nil {
+		baseDir = cfg.ProjectDir
 	}
-
-	baseDir := strings.TrimSpace(cfg.ProjectDir)
-	if baseDir == "" {
-		var err error
-		baseDir, err = os.Getwd()
-		if err != nil {
-			return "", err
-		}
-	}
-
-	resolved := filepath.Join(baseDir, defaultConfigFilename)
-	setConfigFilePathInternal(resolved)
-	return resolved, nil
+	return configStore.Resolve(baseDir)
 }
 
 func getConfigFilePath() string {
-	configPathMu.RLock()
-	path := configFilePath
-	configPathMu.RUnlock()
-	return path
+	return configStore.Path()
 }
 
 func setConfigFilePathInternal(path string) {
-	configPathMu.Lock()
-	configFilePath = strings.TrimSpace(path)
-	configPathMu.Unlock()
+	_, _ = configStore.SetPath(path)
 }
 
 func setConfigFilePath(path string) (*config.Config, error) {
@@ -352,16 +315,11 @@ func setConfigFilePath(path string) (*config.Config, error) {
 		return cfg, nil
 	}
 
-	absPath := trimmed
-	if !filepath.IsAbs(absPath) {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("determine working directory: %w", err)
-		}
-		absPath = filepath.Join(cwd, trimmed)
+	absPath, err := configStore.SetPath(trimmed)
+	if err != nil {
+		return nil, err
 	}
 
-	setConfigFilePathInternal(absPath)
 	cfg, err := loadConfigFromFile(absPath)
 	if err != nil {
 		return nil, err
