@@ -19,7 +19,7 @@ type ConfigStore struct {
 // NewConfigStore creates a store with a default filename used when no
 // explicit path is provided.
 func NewConfigStore(defaultFilename string) *ConfigStore {
-	return &ConfigStore{defaultFilename: defaultFilename}
+	return &ConfigStore{defaultFilename: strings.TrimSpace(defaultFilename)}
 }
 
 // Path returns the current absolute config file path or empty if unset.
@@ -59,6 +59,9 @@ func (s *ConfigStore) SetPath(path string) (string, error) {
 // DetectDefault checks the current working directory for an existing
 // config file using the default filename.
 func (s *ConfigStore) DetectDefault() (string, bool) {
+	if s.defaultFilename == "" {
+		return "", false
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", false
@@ -77,6 +80,9 @@ func (s *ConfigStore) DetectDefault() (string, bool) {
 func (s *ConfigStore) Resolve(baseDir string) (string, error) {
 	if existing := s.Path(); existing != "" {
 		return existing, nil
+	}
+	if s.defaultFilename == "" {
+		return "", fmt.Errorf("default config filename not configured")
 	}
 
 	root := strings.TrimSpace(baseDir)

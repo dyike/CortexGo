@@ -29,15 +29,6 @@ import (
 	"github.com/dyike/CortexGo/internal/utils"
 )
 
-type analysisResponse struct {
-	Success bool                 `json:"success"`
-	Error   string               `json:"error,omitempty"`
-	Symbol  string               `json:"symbol,omitempty"`
-	Date    string               `json:"date,omitempty"`
-	Summary json.RawMessage      `json:"summary,omitempty"`
-	State   *models.TradingState `json:"state,omitempty"`
-}
-
 type configResponse struct {
 	Success bool           `json:"success"`
 	Error   string         `json:"error,omitempty"`
@@ -52,10 +43,8 @@ var (
 	logCb   C.log_callback_t
 	logCtx  unsafe.Pointer
 
-	configStore = utils.NewConfigStore(defaultConfigFilename)
+	configStore = utils.NewConfigStore("")
 )
-
-const defaultConfigFilename = "cortexgo.json"
 
 func emitToRegisteredCallback(event string, data *models.ChatResp) {
 	logCbMu.RLock()
@@ -137,10 +126,6 @@ func buildConfig(base *config.Config, payload string) (*config.Config, error) {
 	}
 
 	normalizeConfig(cfg)
-
-	if err := cfg.EnsureDirectories(); err != nil {
-		return nil, err
-	}
 
 	return cfg, nil
 }
@@ -264,9 +249,12 @@ func persistActiveConfig(cfg *config.Config) error {
 	if path == "" {
 		resolved, err := resolveConfigPath(cfg)
 		if err != nil {
-			return err
+			return nil
 		}
 		path = resolved
+	}
+	if strings.TrimSpace(path) == "" {
+		return nil
 	}
 
 	return persistConfigToPath(cfg, path)

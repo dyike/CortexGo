@@ -19,10 +19,10 @@ type TradingAgentsGraph struct {
 }
 
 func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
-	return NewTradingAgentsGraphWithEmitter(debug, cfg, nil)
+	return NewTradingAgentsGraphWithEmitter(cfg, nil)
 }
 
-func NewTradingAgentsGraphWithEmitter(debug bool, cfg *config.Config, emit func(string, *models.ChatResp)) *TradingAgentsGraph {
+func NewTradingAgentsGraphWithEmitter(cfg *config.Config, emit func(string, *models.ChatResp)) *TradingAgentsGraph {
 	if cfg == nil {
 		cfg = config.DefaultConfig()
 	}
@@ -54,7 +54,7 @@ func NewTradingAgentsGraphWithEmitter(debug bool, cfg *config.Config, emit func(
 	return &TradingAgentsGraph{
 		config:       cfg,
 		orchestrator: orchestrator,
-		debug:        debug,
+		debug:        cfg.EinoDebugEnabled,
 		emit:         emitter,
 	}
 }

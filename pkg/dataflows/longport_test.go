@@ -10,9 +10,14 @@ import (
 func TestLongportClient_GetStaticInfo(t *testing.T) {
 	// Load configuration from environment
 	cfg := config.DefaultConfig()
+	longportConf := LongportConfig{
+		AppKey:      cfg.LongportAppKey,
+		AppSecret:   cfg.LongportAppSecret,
+		AccessToken: cfg.LongportAccessToken,
+	}
 
 	// Create Longport client
-	client, err := NewLongportClient(cfg)
+	client, err := NewLongportClient(longportConf)
 	if err != nil {
 		t.Skipf("Skipping test due to missing Longport API credentials: %v", err)
 	}
