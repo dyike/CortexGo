@@ -3,17 +3,6 @@
   "results_dir": "/Users/ityike/Code/CortexApp/results",
   "data_dir": "/Users/ityike/Code/CortexApp/data",
   "data_cache_dir": "/Users/ityike/Code/CortexApp/data/cache",
-
-  "llm_provider": "deepseek",
-  "deep_think_llm": "deepseek-chat",
-  "quick_think_llm": "deepseek-chat",
-  "backend_url": "",
-  "max_debate_rounds": 3,
-  "max_risk_rounds": 3,
-  "max_recursion_limit": 128,
-  "online_tools": true,
-  "debug": false,
-  "reddit_user_agent": "CortexGo/1.0",
   "cache_enabled": true,
 
   "eino_debug_enabled": false,

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -27,9 +28,31 @@ type Config struct {
 	DeepSeekAPIKey string `json:"deepseek_api_key"`
 }
 
+func LoadConfigFromEnv() *Config {
+	cfg := &Config{}
+	_ = godotenv.Load()
+	cfg.loadFromEnv()
+	return cfg
+}
+
+func LoadConfigFromJsonFile(path string) *Config {
+	cfg := &Config{}
+	if err := loadConfigFromFile(path, cfg); err != nil {
+		panic(err)
+	}
+	return cfg
+}
+
+func LoadConfigFromJsonContent(content string) *Config {
+	cfg := &Config{}
+	if err := json.Unmarshal([]byte(content), cfg); err != nil {
+		panic(err)
+	}
+	return cfg
+}
+
 func DefaultConfig() *Config {
 	currentDir, _ := os.Getwd()
-
 	cfg := &Config{
 		ProjectDir:   currentDir,
 		ResultsDir:   filepath.Join(currentDir, "results"),
@@ -83,4 +106,23 @@ func (c *Config) loadFromEnv() {
 	if val := os.Getenv("DEEPSEEK_API_KEY"); val != "" {
 		c.DeepSeekAPIKey = val
 	}
+}
+
+func loadConfigFromFile(filePath string, cfg *Config) error {
+	if _, err := os.Stat(filePath); err != nil {
+		return err
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(cfg); err != nil {
+		return err
+	}
+
+	return nil
 }

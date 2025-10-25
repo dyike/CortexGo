@@ -24,9 +24,8 @@ func NewTradingAgentsGraph(debug bool, cfg *config.Config) *TradingAgentsGraph {
 
 func NewTradingAgentsGraphWithEmitter(cfg *config.Config, emit func(string, *models.ChatResp)) *TradingAgentsGraph {
 	if cfg == nil {
-		cfg = config.DefaultConfig()
+		return nil
 	}
-
 	emitter := emit
 	if emitter == nil {
 		emitter = func(_ string, data *models.ChatResp) {
