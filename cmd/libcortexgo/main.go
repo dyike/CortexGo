@@ -14,7 +14,6 @@ import "C"
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,10 +22,8 @@ import (
 	"unsafe"
 
 	"github.com/dyike/CortexGo/config"
-	"github.com/dyike/CortexGo/internal/display"
 	"github.com/dyike/CortexGo/internal/graph"
 	"github.com/dyike/CortexGo/internal/models"
-	"github.com/dyike/CortexGo/internal/utils"
 )
 
 type configResponse struct {
@@ -39,51 +36,15 @@ var (
 	cfgMu     sync.RWMutex
 	activeCfg *config.Config
 
+	cfgPathMu sync.RWMutex
+	cfgPath   string
+
 	logCbMu sync.RWMutex
 	logCb   C.log_callback_t
 	logCtx  unsafe.Pointer
-
-	configStore = utils.NewConfigStore("")
 )
 
-func emitToRegisteredCallback(event string, data *models.ChatResp) {
-	logCbMu.RLock()
-	cb := logCb
-	ctx := logCtx
-	logCbMu.RUnlock()
-
-	if cb == nil {
-		if data == nil {
-			return
-		}
-		if strings.TrimSpace(data.Content) != "" {
-			fmt.Print(data.Content)
-		}
-		return
-	}
-
-	envelope := map[string]any{
-		"event": event,
-	}
-	if data != nil {
-		envelope["data"] = data
-	} else {
-		envelope["data"] = map[string]any{}
-	}
-
-	bytes, err := json.Marshal(envelope)
-	if err != nil {
-		fallback := map[string]any{
-			"event": "log_error",
-			"error": err.Error(),
-		}
-		bytes, _ = json.Marshal(fallback)
-	}
-
-	cstr := C.CString(string(bytes))
-	defer C.free(unsafe.Pointer(cstr))
-	C.call_log_callback(cb, cstr, ctx)
-}
+// Helpers -------------------------------------------------------------------
 
 func goString(ptr *C.char) string {
 	if ptr == nil {
@@ -92,21 +53,19 @@ func goString(ptr *C.char) string {
 	return C.GoString(ptr)
 }
 
+func setActiveConfig(cfg *config.Config) {
+	cfgMu.Lock()
+	activeCfg = cfg
+	cfgMu.Unlock()
+}
+
 func ensureConfig() (*config.Config, error) {
 	cfgMu.RLock()
-	if activeCfg != nil {
-		cfg := activeCfg
-		cfgMu.RUnlock()
-		return cfg, nil
-	}
+	cfg := activeCfg
 	cfgMu.RUnlock()
-
-	cfg, err := loadInitialConfig()
-	if err != nil {
-		return nil, err
+	if cfg == nil {
+		return nil, fmt.Errorf("configuration not initialized; call CortexGoSetConfigPath first")
 	}
-
-	storeActiveConfig(cfg)
 	return cfg, nil
 }
 
@@ -126,7 +85,55 @@ func buildConfig(base *config.Config, payload string) (*config.Config, error) {
 	}
 
 	normalizeConfig(cfg)
+	return cfg, nil
+}
 
+func currentConfigCopy() (*config.Config, error) {
+	cfg, err := ensureConfig()
+	if err != nil {
+		return nil, err
+	}
+	clone := *cfg
+	return &clone, nil
+}
+
+func currentConfigPath() string {
+	cfgPathMu.RLock()
+	defer cfgPathMu.RUnlock()
+	return cfgPath
+}
+
+func updateConfigPath(path string) {
+	cfgPathMu.Lock()
+	cfgPath = path
+	cfgPathMu.Unlock()
+}
+
+func loadConfigFromPath(path string) (*config.Config, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return nil, fmt.Errorf("config path is empty")
+	}
+	absPath, err := filepath.Abs(trimmed)
+	if err != nil {
+		return nil, err
+	}
+	cfg, loadErr := safeLoadConfigFromFile(absPath)
+	if loadErr != nil {
+		return nil, loadErr
+	}
+	normalizeConfig(cfg)
+	return cfg, nil
+}
+
+func safeLoadConfigFromFile(path string) (cfg *config.Config, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("load config: %v", r)
+			cfg = nil
+		}
+	}()
+	cfg = config.LoadConfigFromJsonFile(path)
 	return cfg, nil
 }
 
@@ -160,161 +167,62 @@ func normalizeConfig(cfg *config.Config) {
 	}
 }
 
-func storeActiveConfig(cfg *config.Config) {
-	cfgMu.Lock()
-	activeCfg = cfg
-	cfgMu.Unlock()
-
-	if err := persistActiveConfig(cfg); err != nil {
-		fmt.Printf("failed to persist config: %v\n", err)
+func persistConfigToDisk(cfg *config.Config) error {
+	path := currentConfigPath()
+	if cfg == nil || strings.TrimSpace(path) == "" {
+		return nil
 	}
-}
-
-func currentConfigCopy() (*config.Config, error) {
-	if _, err := ensureConfig(); err != nil {
-		return nil, err
-	}
-
-	cfgMu.RLock()
-	defer cfgMu.RUnlock()
-
-	if activeCfg == nil {
-		return nil, fmt.Errorf("configuration not initialized")
-	}
-
-	clone := *activeCfg
-	return &clone, nil
-}
-
-func loadInitialConfig() (*config.Config, error) {
-	if path := strings.TrimSpace(configStore.Path()); path != "" {
-		return loadConfigFromFile(path)
-	}
-
-	if envPath := strings.TrimSpace(os.Getenv("CORTEXGO_CONFIG_PATH")); envPath != "" {
-		if _, err := configStore.SetPath(envPath); err != nil {
-			return nil, err
-		}
-		return loadConfigFromFile(configStore.Path())
-	}
-
-	if defaultPath, ok := configStore.DetectDefault(); ok {
-		if _, err := configStore.SetPath(defaultPath); err != nil {
-			return nil, err
-		}
-		return loadConfigFromFile(defaultPath)
-	}
-
-	return buildConfig(nil, "")
-}
-
-func loadConfigFromFile(path string) (*config.Config, error) {
-	trimmed := strings.TrimSpace(path)
-	if trimmed == "" {
-		return nil, fmt.Errorf("config path is empty")
-	}
-
-	data, err := configStore.Read(trimmed)
+	abs, err := filepath.Abs(path)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			base := config.DefaultConfig()
-			if base != nil {
-				base.ProjectDir = filepath.Dir(trimmed)
-			}
-			cfg, buildErr := buildConfig(base, "")
-			if buildErr != nil {
-				return nil, buildErr
-			}
-			if persistErr := persistConfigToPath(cfg, trimmed); persistErr != nil {
-				return nil, persistErr
-			}
-			return cfg, nil
-		}
-		return nil, fmt.Errorf("read config file: %w", err)
+		return err
 	}
-
-	base := config.DefaultConfig()
-	if base != nil {
-		base.ProjectDir = filepath.Dir(trimmed)
+	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		return err
 	}
-	return buildConfig(base, string(data))
-}
-
-func persistActiveConfig(cfg *config.Config) error {
-	if cfg == nil {
-		return nil
-	}
-
-	path := strings.TrimSpace(configStore.Path())
-	if path == "" {
-		resolved, err := resolveConfigPath(cfg)
-		if err != nil {
-			return nil
-		}
-		path = resolved
-	}
-	if strings.TrimSpace(path) == "" {
-		return nil
-	}
-
-	return persistConfigToPath(cfg, path)
-}
-
-func persistConfigToPath(cfg *config.Config, path string) error {
-	if cfg == nil {
-		return nil
-	}
-	if strings.TrimSpace(path) == "" {
-		return fmt.Errorf("config path is empty")
-	}
-
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
-
-	return configStore.Write(path, data)
+	return os.WriteFile(abs, data, 0o644)
 }
 
-func resolveConfigPath(cfg *config.Config) (string, error) {
-	baseDir := ""
-	if cfg != nil {
-		baseDir = cfg.ProjectDir
-	}
-	return configStore.Resolve(baseDir)
-}
+// Logging --------------------------------------------------------------------
 
-func getConfigFilePath() string {
-	return configStore.Path()
-}
+func emitToRegisteredCallback(event string, data *models.ChatResp) {
+	logCbMu.RLock()
+	cb := logCb
+	ctx := logCtx
+	logCbMu.RUnlock()
 
-func setConfigFilePathInternal(path string) {
-	_, _ = configStore.SetPath(path)
-}
-
-func setConfigFilePath(path string) (*config.Config, error) {
-	trimmed := strings.TrimSpace(path)
-	if trimmed == "" {
-		setConfigFilePathInternal("")
-		cfg, err := ensureConfig()
-		if err != nil {
-			return nil, err
+	if cb == nil {
+		if data == nil {
+			return
 		}
-		return cfg, nil
+		if strings.TrimSpace(data.Content) != "" {
+			fmt.Print(data.Content)
+		}
+		return
 	}
 
-	absPath, err := configStore.SetPath(trimmed)
-	if err != nil {
-		return nil, err
+	envelope := map[string]any{"event": event}
+	if data != nil {
+		envelope["data"] = data
+	} else {
+		envelope["data"] = map[string]any{}
 	}
 
-	cfg, err := loadConfigFromFile(absPath)
+	bytes, err := json.Marshal(envelope)
 	if err != nil {
-		return nil, err
+		fallback := map[string]any{"event": "log_error", "error": err.Error()}
+		bytes, _ = json.Marshal(fallback)
 	}
-	storeActiveConfig(cfg)
-	return cfg, nil
+
+	cstr := C.CString(string(bytes))
+	defer C.free(unsafe.Pointer(cstr))
+	C.call_log_callback(cb, cstr, ctx)
 }
+
+// Analysis -------------------------------------------------------------------
 
 func runAnalysis(symbol, date string) (*analysisResponse, error) {
 	if symbol == "" {
@@ -329,7 +237,11 @@ func runAnalysis(symbol, date string) (*analysisResponse, error) {
 		return nil, err
 	}
 
-	tradingGraph := graph.NewTradingAgentsGraphWithEmitter(cfg.Debug, cfg, emitToRegisteredCallback)
+	tradingGraph := graph.NewTradingAgentsGraphWithEmitter(cfg, emitToRegisteredCallback)
+	if tradingGraph == nil {
+		return nil, fmt.Errorf("failed to initialize trading graph")
+	}
+
 	state, err := tradingGraph.Propagate(symbol, date)
 	if err != nil {
 		return nil, err
@@ -339,7 +251,7 @@ func runAnalysis(symbol, date string) (*analysisResponse, error) {
 		state.Config = nil
 	}
 
-	summaryJSON, err := display.NewResultsDisplay(symbol, date).SerializeResults(state)
+	summaryJSON, err := json.Marshal(state)
 	if err != nil {
 		return nil, err
 	}
@@ -356,13 +268,9 @@ func runAnalysis(symbol, date string) (*analysisResponse, error) {
 func encodeConfigResponse(resp configResponse) *C.char {
 	data, err := json.Marshal(resp)
 	if err != nil {
-		fallback := map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		}
+		fallback := map[string]any{"success": false, "error": err.Error()}
 		data, _ = json.Marshal(fallback)
 	}
-
 	return C.CString(string(data))
 }
 
@@ -370,18 +278,15 @@ func encodeAnalysisPayload(resp *analysisResponse) *C.char {
 	if resp == nil {
 		resp = &analysisResponse{Success: false, Error: "nil response"}
 	}
-
 	payload, err := json.Marshal(resp)
 	if err != nil {
-		fallback := map[string]any{
-			"success": false,
-			"error":   err.Error(),
-		}
+		fallback := map[string]any{"success": false, "error": err.Error()}
 		payload, _ = json.Marshal(fallback)
 	}
-
 	return C.CString(string(payload))
 }
+
+// Exported APIs --------------------------------------------------------------
 
 //export CortexGoRegisterLogCallback
 func CortexGoRegisterLogCallback(cb C.log_callback_t, user unsafe.Pointer) {
@@ -394,157 +299,48 @@ func CortexGoRegisterLogCallback(cb C.log_callback_t, user unsafe.Pointer) {
 //export CortexGoSetConfigPath
 func CortexGoSetConfigPath(path *C.char) *C.char {
 	goPath := goString(path)
-	cfg, err := setConfigFilePath(goPath)
+	cfg, err := loadConfigFromPath(goPath)
 	if err != nil {
-		return encodeConfigResponse(configResponse{
-			Success: false,
-			Error:   err.Error(),
-		})
+		return encodeConfigResponse(configResponse{Success: false, Error: err.Error()})
 	}
-
-	return encodeConfigResponse(configResponse{
-		Success: true,
-		Config:  cfg,
-	})
-}
-
-//export CortexGoAnalyzeWithConfig
-func CortexGoAnalyzeWithConfig(symbol *C.char, date *C.char, configJSON *C.char) *C.char {
-	jsonPayload := goString(configJSON)
-	if strings.TrimSpace(jsonPayload) != "" {
-		base, err := currentConfigCopy()
-		if err != nil {
-			cfg, buildErr := buildConfig(nil, jsonPayload)
-			if buildErr != nil {
-				return encodeAnalysisPayload(&analysisResponse{
-					Success: false,
-					Error:   buildErr.Error(),
-				})
-			}
-			storeActiveConfig(cfg)
-		} else {
-			cfg, err := buildConfig(base, jsonPayload)
-			if err != nil {
-				return encodeAnalysisPayload(&analysisResponse{
-					Success: false,
-					Error:   err.Error(),
-				})
-			}
-			storeActiveConfig(cfg)
-		}
-	}
-
-	return CortexGoAnalyze(symbol, date)
-}
-
-//export CortexGoSetConfigJSON
-func CortexGoSetConfigJSON(configJSON *C.char) *C.char {
-	jsonPayload := goString(configJSON)
-
-	cfg, err := buildConfig(nil, jsonPayload)
-	if err != nil {
-		return encodeConfigResponse(configResponse{
-			Success: false,
-			Error:   err.Error(),
-		})
-	}
-
-	storeActiveConfig(cfg)
-
-	return encodeConfigResponse(configResponse{
-		Success: true,
-		Config:  cfg,
-	})
+	absPath, _ := filepath.Abs(strings.TrimSpace(goPath))
+	updateConfigPath(absPath)
+	setActiveConfig(cfg)
+	return encodeConfigResponse(configResponse{Success: true, Config: cfg})
 }
 
 //export CortexGoUpdateConfigJSON
 func CortexGoUpdateConfigJSON(configJSON *C.char) *C.char {
 	jsonPayload := goString(configJSON)
+	if strings.TrimSpace(jsonPayload) == "" {
+		return encodeConfigResponse(configResponse{Success: false, Error: "config payload is empty"})
+	}
 
 	current, err := currentConfigCopy()
 	if err != nil {
-		return encodeConfigResponse(configResponse{
-			Success: false,
-			Error:   err.Error(),
-		})
+		current = config.DefaultConfig()
 	}
 
 	cfg, err := buildConfig(current, jsonPayload)
 	if err != nil {
-		return encodeConfigResponse(configResponse{
-			Success: false,
-			Error:   err.Error(),
-		})
+		return encodeConfigResponse(configResponse{Success: false, Error: err.Error()})
 	}
 
-	storeActiveConfig(cfg)
-
-	return encodeConfigResponse(configResponse{
-		Success: true,
-		Config:  cfg,
-	})
-}
-
-//export CortexGoResetConfig
-func CortexGoResetConfig() *C.char {
-	cfg, err := buildConfig(nil, "")
-	if err != nil {
-		return encodeConfigResponse(configResponse{
-			Success: false,
-			Error:   err.Error(),
-		})
+	setActiveConfig(cfg)
+	if err := persistConfigToDisk(cfg); err != nil {
+		return encodeConfigResponse(configResponse{Success: false, Error: err.Error()})
 	}
 
-	storeActiveConfig(cfg)
-
-	return encodeConfigResponse(configResponse{
-		Success: true,
-		Config:  cfg,
-	})
-}
-
-//export CortexGoGetConfigJSON
-func CortexGoGetConfigJSON() *C.char {
-	cfg, err := currentConfigCopy()
-	if err != nil {
-		return encodeConfigResponse(configResponse{
-			Success: false,
-			Error:   err.Error(),
-		})
-	}
-
-	return encodeConfigResponse(configResponse{
-		Success: true,
-		Config:  cfg,
-	})
+	return encodeConfigResponse(configResponse{Success: true, Config: cfg})
 }
 
 //export CortexGoAnalyze
 func CortexGoAnalyze(symbol *C.char, date *C.char) *C.char {
-	goSymbol := C.GoString(symbol)
-	goDate := C.GoString(date)
-
-	resp, err := runAnalysis(goSymbol, goDate)
+	resp, err := runAnalysis(C.GoString(symbol), C.GoString(date))
 	if err != nil {
-		resp = &analysisResponse{
-			Success: false,
-			Error:   err.Error(),
-		}
+		resp = &analysisResponse{Success: false, Error: err.Error()}
 	}
-
 	return encodeAnalysisPayload(resp)
-}
-
-//export CortexGoFree
-func CortexGoFree(ptr *C.char) {
-	if ptr != nil {
-		C.free(unsafe.Pointer(ptr))
-	}
-}
-
-//export CortexGoVersion
-func CortexGoVersion() *C.char {
-	return C.CString("v0.0.1")
 }
 
 func main() {}
