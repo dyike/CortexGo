@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 
 	"github.com/joho/godotenv"
 )
@@ -26,6 +27,34 @@ type Config struct {
 
 	// AI Model API Keys
 	DeepSeekAPIKey string `json:"deepseek_api_key"`
+}
+
+var (
+	globalCfg Config
+	mu        sync.RWMutex
+	ConfigDir string
+)
+
+func Initialize(dir string, jsonStr string) error {
+	ConfigDir = dir
+	return Update(jsonStr)
+}
+
+func Update(jsonStr string) error {
+	var newCfg Config
+	if err := json.Unmarshal([]byte(jsonStr), &newCfg); err != nil {
+		return err
+	}
+	mu.Lock()
+	globalCfg = newCfg
+	mu.Unlock()
+	return nil
+}
+
+func Get() Config {
+	mu.RLock()
+	defer mu.RUnlock()
+	return globalCfg
 }
 
 func LoadConfigFromEnv() *Config {
