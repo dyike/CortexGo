@@ -2,10 +2,11 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -29,32 +30,39 @@ type Config struct {
 	DeepSeekAPIKey string `json:"deepseek_api_key"`
 }
 
-var (
-	globalCfg Config
-	mu        sync.RWMutex
-	ConfigDir string
-)
+var ConfigDir string
 
-func Initialize(dir string, jsonStr string) error {
-	ConfigDir = dir
-	return Update(jsonStr)
-}
-
-func Update(jsonStr string) error {
-	var newCfg Config
-	if err := json.Unmarshal([]byte(jsonStr), &newCfg); err != nil {
+func Initialize(path string) error {
+	opts := []ManagerOption{}
+	if strings.TrimSpace(path) != "" {
+		if strings.EqualFold(filepath.Ext(path), ".json") {
+			opts = append(opts, WithConfigPath(path))
+		} else {
+			opts = append(opts, WithConfigDir(path))
+		}
+	}
+	mgr, err := NewManager(opts...)
+	if err != nil {
 		return err
 	}
-	mu.Lock()
-	globalCfg = newCfg
-	mu.Unlock()
+	SetDefaultManager(mgr)
 	return nil
 }
 
+func Update(jsonStr string) error {
+	mgr := DefaultManager()
+	if mgr == nil {
+		return errors.New("config manager not initialized")
+	}
+	return mgr.UpdateFromJSON(jsonStr)
+}
+
 func Get() Config {
-	mu.RLock()
-	defer mu.RUnlock()
-	return globalCfg
+	mgr := DefaultManager()
+	if mgr == nil {
+		return Config{}
+	}
+	return mgr.Get()
 }
 
 func LoadConfigFromEnv() *Config {
@@ -81,12 +89,20 @@ func LoadConfigFromJsonContent(content string) *Config {
 }
 
 func DefaultConfig() *Config {
-	currentDir, _ := os.Getwd()
+	return DefaultConfigWithRoot("")
+}
+
+func DefaultConfigWithRoot(root string) *Config {
+	baseDir := root
+	if baseDir == "" {
+		currentDir, _ := os.Getwd()
+		baseDir = currentDir
+	}
 	cfg := &Config{
-		ProjectDir:   currentDir,
-		ResultsDir:   filepath.Join(currentDir, "results"),
-		DataDir:      filepath.Join(currentDir, "data"),
-		DataCacheDir: filepath.Join(currentDir, "data", "cache"),
+		ProjectDir:   baseDir,
+		ResultsDir:   filepath.Join(baseDir, "results"),
+		DataDir:      filepath.Join(baseDir, "data"),
+		DataCacheDir: filepath.Join(baseDir, "data", "cache"),
 
 		// Eino Debug defaults
 		EinoDebugEnabled: false,
@@ -135,6 +151,25 @@ func (c *Config) loadFromEnv() {
 	if val := os.Getenv("DEEPSEEK_API_KEY"); val != "" {
 		c.DeepSeekAPIKey = val
 	}
+}
+
+func (c *Config) Validate() error {
+	if c.ProjectDir == "" {
+		return errors.New("project_dir cannot be empty")
+	}
+	if c.ResultsDir == "" {
+		return errors.New("results_dir cannot be empty")
+	}
+	if c.DataDir == "" {
+		return errors.New("data_dir cannot be empty")
+	}
+	if c.DataCacheDir == "" {
+		return errors.New("data_cache_dir cannot be empty")
+	}
+	if c.EinoDebugPort < 0 {
+		return errors.New("eino_debug_port cannot be negative")
+	}
+	return nil
 }
 
 func loadConfigFromFile(filePath string, cfg *Config) error {

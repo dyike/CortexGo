@@ -7,6 +7,7 @@ require (
 	github.com/cloudwego/eino v0.4.4
 	github.com/cloudwego/eino-ext/components/model/openai v0.0.0-20250729134059-2ccbac3c0210
 	github.com/cloudwego/eino-ext/devops v0.1.7
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/joho/godotenv v1.5.1
 	github.com/longportapp/openapi-go v0.16.3

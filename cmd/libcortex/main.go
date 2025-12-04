@@ -17,13 +17,16 @@ static void invokeCallback(EventCallback cb, char* topic, char* payload) {
 */
 import "C"
 import (
+	"encoding/json"
 	"unsafe"
 
 	"github.com/dyike/CortexGo/config"
+	"github.com/dyike/CortexGo/pkg/app"
 	"github.com/dyike/CortexGo/pkg/bridge"
 )
 
 var globalCallback C.EventCallback
+var appRuntime *app.Runtime
 
 func init() {
 	// 设置Go内部发送事件的实现
@@ -42,14 +45,22 @@ func init() {
 }
 
 //export InitSDK
-func InitSDK(workDir *C.char, configJson *C.char) *C.char {
-	dir := C.GoString(workDir)
-	cfg := C.GoString(configJson)
+func InitSDK(configPath *C.char) *C.char {
+	path := C.GoString(configPath)
 
-	err := config.Initialize(dir, cfg)
+	if err := config.Initialize(path); err != nil {
+		return C.CString("Error: " + err.Error())
+	}
+
+	if appRuntime != nil {
+		appRuntime.Close()
+	}
+
+	rt, err := app.NewRuntime(config.DefaultManager(), app.WithNotifier(bridge.Notify))
 	if err != nil {
 		return C.CString("Error: " + err.Error())
 	}
+	appRuntime = rt
 	return C.CString("Success")
 }
 
@@ -61,17 +72,24 @@ func RegisterCallback(cb C.EventCallback) {
 //export UpdateConfig
 func UpdateConfig(jsonStr *C.char) *C.char {
 	newCfg := C.GoString(jsonStr)
-	config.Update(newCfg)
+	if err := config.Update(newCfg); err != nil {
+		return C.CString("Error: " + err.Error())
+	}
 	return C.CString("Success")
+}
+
+//export GetConfig
+func GetConfig() *C.char {
+	cfg := config.Get()
+	b, _ := json.Marshal(cfg)
+	return C.CString(string(b))
 }
 
 //export Call
 func Call(method *C.char, params *C.char) *C.char {
 	m := C.GoString(method)
 	p := C.GoString(params)
-
 	resp := Dispatch(m, p)
-
 	return C.CString(resp)
 }
 
