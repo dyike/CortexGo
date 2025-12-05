@@ -11,8 +11,8 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/models"
 )
 
 func researchManagerRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {

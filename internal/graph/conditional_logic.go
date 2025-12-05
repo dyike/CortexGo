@@ -6,7 +6,7 @@ import (
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/dyike/CortexGo/consts"
-	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/models"
 )
 
 func ShouldContinueDebate(ctx context.Context, _ string) (string, error) {

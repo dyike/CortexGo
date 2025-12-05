@@ -12,8 +12,8 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/models"
 )
 
 func NewBullResearcherNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {

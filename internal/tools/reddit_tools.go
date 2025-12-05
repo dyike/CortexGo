@@ -10,7 +10,7 @@ import (
 	t_utils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/config"
-	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/models"
 	"github.com/dyike/CortexGo/pkg/dataflows"
 )
 

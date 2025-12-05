@@ -11,8 +11,8 @@ import (
 	ecmodel "github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/models"
 )
 
 type LoggerCallback struct {

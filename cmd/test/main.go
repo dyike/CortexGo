@@ -13,7 +13,7 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/graph"
-	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/models"
 )
 
 func main() {

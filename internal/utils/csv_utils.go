@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/models"
 )
 
 type CSVManager struct {

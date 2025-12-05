@@ -10,8 +10,8 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/models"
 )
 
 func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {

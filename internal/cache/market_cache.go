@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dyike/CortexGo/internal/models"
 	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/models"
 )
 
 type MarketDataCache struct {

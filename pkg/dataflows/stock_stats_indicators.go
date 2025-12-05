@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/models"
 )
 
 func CalculateAllIndicators(data []*models.MarketData, startDate, endDate time.Time) map[string][]models.IndicatorValue {

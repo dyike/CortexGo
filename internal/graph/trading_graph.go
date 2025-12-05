@@ -8,7 +8,7 @@ import (
 
 	"github.com/cloudwego/eino/compose"
 	"github.com/dyike/CortexGo/config"
-	"github.com/dyike/CortexGo/internal/models"
+	"github.com/dyike/CortexGo/models"
 )
 
 type TradingAgentsGraph struct {
