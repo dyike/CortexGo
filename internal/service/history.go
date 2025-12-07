@@ -14,7 +14,7 @@ import (
 	"github.com/dyike/CortexGo/models"
 )
 
-// GetAgentHistory 读取 results 目录下指定标的与交易日的 Markdown 报告
+// GetAgentHistory 列出 results 目录下所有 Markdown 报告（仅目录信息，不包含内容），支持书签分页
 func GetAgentHistory(paramsJson string) (any, error) {
 	var params models.HistoryParams
 	if strings.TrimSpace(paramsJson) != "" {
@@ -23,65 +23,13 @@ func GetAgentHistory(paramsJson string) (any, error) {
 		}
 	}
 
-	params.Symbol = strings.TrimSpace(params.Symbol)
-	params.TradeDate = strings.TrimSpace(params.TradeDate)
-
 	cfg := config.Get()
-	resultsDir := strings.TrimSpace(cfg.ResultsDir)
-	if resultsDir == "" {
+	resultsDirAbs, err := filepath.Abs(strings.TrimSpace(cfg.ResultsDir))
+	if err != nil || resultsDirAbs == "" {
 		return nil, errors.New("results_dir is not configured")
 	}
 
-	// 如果没有传 symbol / trade_date，列出全部 Markdown 报告（支持书签分页）
-	if params.Symbol == "" && params.TradeDate == "" {
-		return listAllHistory(resultsDir, params.Cursor, params.Limit)
-	}
-
-	if params.Symbol == "" || params.TradeDate == "" {
-		return nil, errors.New("symbol and trade_date are required when fetching a specific run")
-	}
-
-	dirPath := filepath.Join(resultsDir, params.Symbol, params.TradeDate)
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("results not found for %s on %s", params.Symbol, params.TradeDate)
-		}
-		return nil, fmt.Errorf("read results dir: %w", err)
-	}
-
-	var files []models.HistoryFile
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		if !strings.EqualFold(filepath.Ext(entry.Name()), ".md") {
-			continue
-		}
-
-		fullPath := filepath.Join(dirPath, entry.Name())
-		content, readErr := os.ReadFile(fullPath)
-		if readErr != nil {
-			return nil, fmt.Errorf("read file %s: %w", entry.Name(), readErr)
-		}
-
-		files = append(files, models.HistoryFile{
-			Name:    entry.Name(),
-			Path:    filepath.ToSlash(filepath.Join(params.Symbol, params.TradeDate, entry.Name())),
-			Content: string(content),
-		})
-	}
-
-	// 为了响应稳定性，对文件名排序
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Name < files[j].Name
-	})
-
-	return map[string]any{
-		"symbol":     params.Symbol,
-		"trade_date": params.TradeDate,
-		"files":      files,
-	}, nil
+	return listAllHistory(resultsDirAbs, params.Cursor, params.Limit)
 }
 
 // listAllHistory 遍历 results 目录，列出所有 markdown 报告，支持简单书签分页
@@ -93,8 +41,13 @@ func listAllHistory(resultsDir string, cursor string, limit int) (any, error) {
 		limit = 200
 	}
 
-	var files []models.HistoryFile
-	if err := filepath.WalkDir(resultsDir, func(path string, d fs.DirEntry, err error) error {
+	resultsDirAbs, err := filepath.Abs(resultsDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve results dir: %w", err)
+	}
+
+	var items []models.HistoryListItem
+	if err := filepath.WalkDir(resultsDirAbs, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -104,18 +57,9 @@ func listAllHistory(resultsDir string, cursor string, limit int) (any, error) {
 		if !strings.EqualFold(filepath.Ext(d.Name()), ".md") {
 			return nil
 		}
-		rel, relErr := filepath.Rel(resultsDir, path)
-		if relErr != nil {
-			return relErr
-		}
-		content, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return fmt.Errorf("read file %s: %w", path, readErr)
-		}
-		files = append(files, models.HistoryFile{
-			Name:    d.Name(),
-			Path:    filepath.ToSlash(rel),
-			Content: string(content),
+		items = append(items, models.HistoryListItem{
+			Name: d.Name(),
+			Path: filepath.ToSlash(path),
 		})
 		return nil
 	}); err != nil {
@@ -126,36 +70,125 @@ func listAllHistory(resultsDir string, cursor string, limit int) (any, error) {
 	}
 
 	// 固定排序，便于书签定位
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Path < files[j].Path
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Path < items[j].Path
 	})
 
 	start := 0
 	if cursor != "" {
-		for i, f := range files {
+		for i, f := range items {
 			if f.Path == cursor {
 				start = i + 1
 				break
 			}
 		}
 	}
-	if start > len(files) {
-		start = len(files)
+	if start > len(items) {
+		start = len(items)
 	}
 	end := start + limit
-	if end > len(files) {
-		end = len(files)
+	if len(items) < end {
+		end = len(items)
 	}
 
-	page := files[start:end]
+	page := items[start:end]
 	nextCursor := ""
-	if end < len(files) {
-		nextCursor = files[end-1].Path
+	if end < len(items) {
+		nextCursor = items[end-1].Path
 	}
 
 	return map[string]any{
-		"files":       page,
+		"items":       page,
 		"next_cursor": nextCursor,
 		"has_more":    nextCursor != "",
+	}, nil
+}
+
+// GetHistoryInfo 根据相对路径读取 markdown 内容；路径可指向目录（递归读取其中的 md）或单个 md 文件
+func GetHistoryInfo(paramsJson string) (any, error) {
+	var params models.HistoryInfoParams
+	if err := json.Unmarshal([]byte(paramsJson), &params); err != nil {
+		return nil, fmt.Errorf("invalid params: %w", err)
+	}
+
+	relPath := strings.TrimSpace(params.Path)
+	if relPath == "" {
+		return nil, errors.New("path is required")
+	}
+
+	absPath, err := filepath.Abs(filepath.Clean(relPath))
+	if err != nil || !filepath.IsAbs(absPath) {
+		return nil, errors.New("invalid path")
+	}
+
+	cfg := config.Get()
+	resultsDirAbs, err := filepath.Abs(strings.TrimSpace(cfg.ResultsDir))
+	if err != nil || resultsDirAbs == "" {
+		return nil, errors.New("results_dir is not configured")
+	}
+
+	relToRoot, err := filepath.Rel(resultsDirAbs, absPath)
+	if err != nil || strings.HasPrefix(relToRoot, "..") {
+		return nil, errors.New("path is outside results_dir")
+	}
+
+	target := absPath
+	info, err := os.Stat(target)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("path not found: %s", relPath)
+		}
+		return nil, fmt.Errorf("stat path: %w", err)
+	}
+
+	var files []models.HistoryFile
+	readFile := func(fullPath string, name string) error {
+		content, readErr := os.ReadFile(fullPath)
+		if readErr != nil {
+			return fmt.Errorf("read file %s: %w", fullPath, readErr)
+		}
+		if _, relErr := filepath.Rel(resultsDirAbs, fullPath); relErr != nil {
+			return relErr
+		}
+		files = append(files, models.HistoryFile{
+			Name:    name,
+			Path:    filepath.ToSlash(fullPath),
+			Content: string(content),
+		})
+		return nil
+	}
+
+	if info.IsDir() {
+		err = filepath.WalkDir(target, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() {
+				return nil
+			}
+			if !strings.EqualFold(filepath.Ext(d.Name()), ".md") {
+				return nil
+			}
+			return readFile(path, d.Name())
+		})
+		if err != nil {
+			return nil, fmt.Errorf("walk dir: %w", err)
+		}
+	} else {
+		if !strings.EqualFold(filepath.Ext(info.Name()), ".md") {
+			return nil, errors.New("path is not a markdown file")
+		}
+		if err := readFile(target, info.Name()); err != nil {
+			return nil, err
+		}
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Path < files[j].Path
+	})
+
+	return map[string]any{
+		"path":  filepath.ToSlash(target),
+		"files": files,
 	}, nil
 }

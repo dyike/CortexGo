@@ -23,6 +23,8 @@ func Dispatch(method string, paramsJson string) string {
 		result, err = service.StartAgentStream(paramsJson)
 	case "agent.history":
 		result, err = service.GetAgentHistory(paramsJson)
+	case "agent.history.info":
+		result, err = service.GetHistoryInfo(paramsJson)
 	default:
 		return jsonResp(404, "Method not found", nil)
 	}
