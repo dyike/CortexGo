@@ -17,10 +17,12 @@ func Dispatch(method string, paramsJson string) string {
 	var err error
 
 	switch method {
-	case "auth.login":
-		result, err = service.Login(paramsJson)
 	case "system.info":
 		result = service.GetSystemInfo()
+	case "agent.stream":
+		result, err = service.StartAgentStream(paramsJson)
+	case "agent.history":
+		result, err = service.GetAgentHistory(paramsJson)
 	default:
 		return jsonResp(404, "Method not found", nil)
 	}
