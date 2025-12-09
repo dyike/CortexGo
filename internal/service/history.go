@@ -1,20 +1,17 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"sort"
+	"strconv"
 	"strings"
 
-	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/models"
 )
 
-// GetAgentHistory 列出 results 目录下所有 Markdown 报告（仅目录信息，不包含内容），支持书签分页
+// GetAgentHistory 从 sqlite 中按 rowid 倒序分页列出历史会话（不含消息内容）
 func GetAgentHistory(paramsJson string) (any, error) {
 	var params models.HistoryParams
 	if strings.TrimSpace(paramsJson) != "" {
@@ -23,17 +20,7 @@ func GetAgentHistory(paramsJson string) (any, error) {
 		}
 	}
 
-	cfg := config.Get()
-	resultsDirAbs, err := filepath.Abs(strings.TrimSpace(cfg.ResultsDir))
-	if err != nil || resultsDirAbs == "" {
-		return nil, errors.New("results_dir is not configured")
-	}
-
-	return listAllHistory(resultsDirAbs, params.Cursor, params.Limit)
-}
-
-// listAllHistory 遍历 results 目录，列出所有 markdown 报告，支持简单书签分页
-func listAllHistory(resultsDir string, cursor string, limit int) (any, error) {
+	limit := params.Limit
 	if limit <= 0 {
 		limit = 50
 	}
@@ -41,154 +28,107 @@ func listAllHistory(resultsDir string, cursor string, limit int) (any, error) {
 		limit = 200
 	}
 
-	resultsDirAbs, err := filepath.Abs(resultsDir)
+	var cursor int64
+	if strings.TrimSpace(params.Cursor) != "" {
+		val, err := strconv.ParseInt(params.Cursor, 10, 64)
+		if err != nil || val < 0 {
+			return nil, fmt.Errorf("invalid cursor")
+		}
+		cursor = val
+	}
+
+	store, err := getSQLiteStore()
 	if err != nil {
-		return nil, fmt.Errorf("resolve results dir: %w", err)
+		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	var items []models.HistoryListItem
-	if err := filepath.WalkDir(resultsDirAbs, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if !strings.EqualFold(filepath.Ext(d.Name()), ".md") {
-			return nil
-		}
-		items = append(items, models.HistoryListItem{
-			Name: d.Name(),
-			Path: filepath.ToSlash(path),
+	ctx := context.Background()
+	sessions, err := store.ListSessions(ctx, cursor, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]models.HistorySession, 0, len(sessions))
+	for _, s := range sessions {
+		items = append(items, models.HistorySession{
+			SessionID: s.ID,
+			Symbol:    s.Symbol,
+			TradeDate: s.TradeDate,
+			Prompt:    s.Prompt,
+			Status:    s.Status,
+			CreatedAt: s.CreatedAt,
+			UpdatedAt: s.UpdatedAt,
 		})
-		return nil
-	}); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("results directory %s not found", resultsDir)
-		}
-		return nil, fmt.Errorf("walk results dir: %w", err)
 	}
 
-	// 固定排序，便于书签定位
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Path < items[j].Path
-	})
-
-	start := 0
-	if cursor != "" {
-		for i, f := range items {
-			if f.Path == cursor {
-				start = i + 1
-				break
-			}
-		}
-	}
-	if start > len(items) {
-		start = len(items)
-	}
-	end := start + limit
-	if len(items) < end {
-		end = len(items)
-	}
-
-	page := items[start:end]
 	nextCursor := ""
-	if end < len(items) {
-		nextCursor = items[end-1].Path
+	if len(sessions) == limit && len(sessions) > 0 {
+		nextCursor = strconv.FormatInt(sessions[len(sessions)-1].RowID, 10)
 	}
 
-	return map[string]any{
-		"items":       page,
-		"next_cursor": nextCursor,
-		"has_more":    nextCursor != "",
+	return models.HistoryListResponse{
+		Items:      items,
+		NextCursor: nextCursor,
+		HasMore:    nextCursor != "",
 	}, nil
 }
 
-// GetHistoryInfo 根据相对路径读取 markdown 内容；路径可指向目录（递归读取其中的 md）或单个 md 文件
+// GetHistoryInfo 根据 session_id 读取会话详情及消息内容
 func GetHistoryInfo(paramsJson string) (any, error) {
 	var params models.HistoryInfoParams
 	if err := json.Unmarshal([]byte(paramsJson), &params); err != nil {
 		return nil, fmt.Errorf("invalid params: %w", err)
 	}
 
-	relPath := strings.TrimSpace(params.Path)
-	if relPath == "" {
-		return nil, errors.New("path is required")
+	sessionID := strings.TrimSpace(params.SessionID)
+	if sessionID == "" {
+		return nil, errors.New("session_id is required")
 	}
 
-	absPath, err := filepath.Abs(filepath.Clean(relPath))
-	if err != nil || !filepath.IsAbs(absPath) {
-		return nil, errors.New("invalid path")
-	}
-
-	cfg := config.Get()
-	resultsDirAbs, err := filepath.Abs(strings.TrimSpace(cfg.ResultsDir))
-	if err != nil || resultsDirAbs == "" {
-		return nil, errors.New("results_dir is not configured")
-	}
-
-	relToRoot, err := filepath.Rel(resultsDirAbs, absPath)
-	if err != nil || strings.HasPrefix(relToRoot, "..") {
-		return nil, errors.New("path is outside results_dir")
-	}
-
-	target := absPath
-	info, err := os.Stat(target)
+	store, err := getSQLiteStore()
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, fmt.Errorf("path not found: %s", relPath)
-		}
-		return nil, fmt.Errorf("stat path: %w", err)
+		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	var files []models.HistoryFile
-	readFile := func(fullPath string, name string) error {
-		content, readErr := os.ReadFile(fullPath)
-		if readErr != nil {
-			return fmt.Errorf("read file %s: %w", fullPath, readErr)
-		}
-		if _, relErr := filepath.Rel(resultsDirAbs, fullPath); relErr != nil {
-			return relErr
-		}
-		files = append(files, models.HistoryFile{
-			Name:    name,
-			Path:    filepath.ToSlash(fullPath),
-			Content: string(content),
+	ctx := context.Background()
+	sessionRec, err := store.GetSession(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if sessionRec == nil {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+
+	msgRecs, err := store.ListMessages(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	messages := make([]models.HistoryMessage, 0, len(msgRecs))
+	for _, m := range msgRecs {
+		messages = append(messages, models.HistoryMessage{
+			ID:           m.ID,
+			Role:         m.Role,
+			Agent:        m.Agent,
+			Content:      m.Content,
+			Status:       m.Status,
+			FinishReason: m.FinishReason,
+			Seq:          m.Seq,
+			CreatedAt:    m.CreatedAt,
+			UpdatedAt:    m.UpdatedAt,
 		})
-		return nil
 	}
 
-	if info.IsDir() {
-		err = filepath.WalkDir(target, func(path string, d fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if d.IsDir() {
-				return nil
-			}
-			if !strings.EqualFold(filepath.Ext(d.Name()), ".md") {
-				return nil
-			}
-			return readFile(path, d.Name())
-		})
-		if err != nil {
-			return nil, fmt.Errorf("walk dir: %w", err)
-		}
-	} else {
-		if !strings.EqualFold(filepath.Ext(info.Name()), ".md") {
-			return nil, errors.New("path is not a markdown file")
-		}
-		if err := readFile(target, info.Name()); err != nil {
-			return nil, err
-		}
-	}
-
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Path < files[j].Path
-	})
-
-	return map[string]any{
-		"path":  filepath.ToSlash(target),
-		"files": files,
+	return models.HistoryInfoResponse{
+		Session: models.HistorySession{
+			SessionID: sessionRec.ID,
+			Symbol:    sessionRec.Symbol,
+			TradeDate: sessionRec.TradeDate,
+			Prompt:    sessionRec.Prompt,
+			Status:    sessionRec.Status,
+			CreatedAt: sessionRec.CreatedAt,
+			UpdatedAt: sessionRec.UpdatedAt,
+		},
+		Messages: messages,
 	}, nil
 }

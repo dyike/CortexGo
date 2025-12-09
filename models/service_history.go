@@ -1,25 +1,49 @@
 package models
 
-// HistoryParams 描述查询历史列表的参数（书签分页）
+// HistoryParams 描述查询历史列表的参数（书签分页，基于 sqlite rowid 游标）
 type HistoryParams struct {
-	Cursor string `json:"cursor"` // 书签分页用
+	Cursor string `json:"cursor"` // rowid 形式的书签，空表示第一页
 	Limit  int    `json:"limit"`  // 每页数量，默认 50，最大 200
 }
 
-// HistoryListItem 表示列表返回的目录/文件信息（无内容）
-type HistoryListItem struct {
-	Name string `json:"name"`
-	Path string `json:"path"` // 相对 results 目录的路径，便于书签
+// HistorySession 表示一次会话的概要信息
+type HistorySession struct {
+	SessionID string `json:"session_id"`
+	Symbol    string `json:"symbol"`
+	TradeDate string `json:"trade_date"`
+	Prompt    string `json:"prompt"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
-// HistoryFile 表示单个 Markdown 报告文件（含内容）
-type HistoryFile struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"` // 相对 results 目录的路径，便于书签
-	Content string `json:"content"`
-}
-
-// HistoryInfoParams 描述按路径读取历史详情的参数
+// HistoryInfoParams 描述按 session_id 读取历史详情的参数
 type HistoryInfoParams struct {
-	Path string `json:"path"` // 相对 results 目录的路径，可以是目录或单个 .md 文件
+	SessionID string `json:"session_id"` // 必填
+}
+
+// HistoryMessage 表示某个会话中的单条消息
+type HistoryMessage struct {
+	ID           string `json:"id"`
+	Role         string `json:"role"`
+	Agent        string `json:"agent"`
+	Content      string `json:"content"`
+	Status       string `json:"status"`
+	FinishReason string `json:"finish_reason"`
+	Seq          int    `json:"seq"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+}
+
+// HistoryListResponse 历史会话列表返回
+type HistoryListResponse struct {
+	Items      []HistorySession `json:"items"`
+	NextCursor string           `json:"next_cursor,omitempty"`
+	HasMore    bool             `json:"has_more"`
+}
+
+// HistoryInfoResponse 单个会话的详情
+type HistoryInfoResponse struct {
+	Session  HistorySession   `json:"session"`
+	Messages []HistoryMessage `json:"messages"`
 }

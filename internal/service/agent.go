@@ -11,6 +11,8 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/graph"
+	"github.com/dyike/CortexGo/internal/storage/sqlite"
+	"github.com/dyike/CortexGo/internal/utils"
 	"github.com/dyike/CortexGo/models"
 	"github.com/dyike/CortexGo/pkg/bridge"
 )
@@ -49,6 +51,22 @@ func StartAgentStream(paramsJson string) (any, error) {
 		return nil, fmt.Errorf("init chat model: %w", err)
 	}
 
+	sessionID := utils.RandStr(16)
+	store, err := getSQLiteStore()
+	if err != nil {
+		return nil, fmt.Errorf("init sqlite: %w", err)
+	}
+	recorder, err := sqlite.NewStreamRecorder(ctx, store, sqlite.SessionRecord{
+		ID:        sessionID,
+		Symbol:    params.Symbol,
+		TradeDate: params.TradeDate,
+		Prompt:    params.Prompt,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("init stream recorder: %w", err)
+	}
+	recorder.RecordUserPrompt(params.Prompt)
+
 	genFunc := func(ctx context.Context) *models.TradingState {
 		return models.NewTradingState(params.Symbol, parsedDate, params.Prompt, &cfg)
 	}
@@ -59,6 +77,7 @@ func StartAgentStream(paramsJson string) (any, error) {
 		_, streamErr := orchestrator.Stream(ctx, params.Prompt,
 			compose.WithCallbacks(&graph.LoggerCallback{
 				Emit: func(event string, data *models.ChatResp) {
+					recorder.HandleStreamEvent(event, data)
 					if data == nil {
 						return
 					}
@@ -67,6 +86,7 @@ func StartAgentStream(paramsJson string) (any, error) {
 				},
 			}),
 		)
+		recorder.Finish(streamErr)
 
 		if streamErr != nil {
 			errPayload, _ := json.Marshal(map[string]string{"error": streamErr.Error()})
@@ -77,5 +97,5 @@ func StartAgentStream(paramsJson string) (any, error) {
 		bridge.Notify("agent.finished", `{"status":"completed"}`)
 	}()
 
-	return map[string]string{"status": "started"}, nil
+	return map[string]string{"status": "started", "session_id": sessionID}, nil
 }

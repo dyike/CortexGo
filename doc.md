@@ -57,15 +57,20 @@
 
 - `agent.history`
   - 入参 JSON（`models.HistoryParams`），可为空：
-    - `cursor` (string, 可选)：书签位置。
+    - `cursor` (string, 可选)：sqlite rowid 书签（为空表示第一页）。
     - `limit` (int, 可选)：每页数量，默认 50，最大 200。
-  - 前置要求：`results_dir` 已配置且存在。
-  - 出参 `data`：`{"items":[{"name":string,"path":string}], "next_cursor":string, "has_more":bool}`。`path` 为遍历得到的绝对路径（按路径排序）。
+  - 前置要求：`data_dir` 已配置；使用 `data_dir/agent.db` 中的会话记录。
+  - 出参 `data`（`models.HistoryListResponse`）：
+    - `items`: `[{session_id,symbol,trade_date,prompt,status,created_at,updated_at}]`
+    - `next_cursor`: string，下一页 rowid 书签；无则为空。
+    - `has_more`: bool。
 
 - `agent.history.info`
   - 入参 JSON（`models.HistoryInfoParams`）：
-    - `path` (string, 必填)：指向 `results_dir` 下的某个 `.md` 文件或目录；相对路径会先转绝对并校验不越界。
-  - 出参 `data`：`{"path":string,"files":[{"name":string,"path":string,"content":string}]}`；如果 `path` 为目录则递归读取目录下所有 `.md` 并按路径排序。
+    - `session_id` (string, 必填)。
+  - 出参 `data`（`models.HistoryInfoResponse`）：
+    - `session`: `{session_id,symbol,trade_date,prompt,status,created_at,updated_at}`
+    - `messages`: `[{id,role,agent,content,status,finish_reason,seq,created_at,updated_at}]`（按 seq 升序）。
 
 ## 事件回调（`RegisterCallback`）
 
