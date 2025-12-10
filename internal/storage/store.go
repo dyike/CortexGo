@@ -1,16 +1,15 @@
-package sqlite
+package storage
 
 import (
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/sqlite"
 )
 
 const (
@@ -23,65 +22,11 @@ type Store struct {
 	db *sql.DB
 }
 
-type SessionRecord struct {
-	ID        string
-	Symbol    string
-	TradeDate string
-	Prompt    string
-	Status    string
-}
-
-type MessageRecord struct {
-	ID           string
-	SessionID    string
-	Role         string
-	Agent        string
-	Content      string
-	Status       string
-	FinishReason string
-	Seq          int
-}
-
-type SessionWithMeta struct {
-	SessionRecord
-	RowID     int64
-	CreatedAt string
-	UpdatedAt string
-}
-
-type MessageWithMeta struct {
-	MessageRecord
-	CreatedAt string
-	UpdatedAt string
-}
-
 func Open(dbPath string) (*Store, error) {
-	if strings.TrimSpace(dbPath) == "" {
-		return nil, fmt.Errorf("db path is required")
-	}
-
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		return nil, fmt.Errorf("create db dir: %w", err)
-	}
-
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sqlite.Open(dbPath)
 	if err != nil {
-		return nil, fmt.Errorf("open sqlite: %w", err)
+		return nil, err
 	}
-
-	pragmas := []string{
-		"PRAGMA journal_mode=WAL;",
-		"PRAGMA busy_timeout=3000;",
-		"PRAGMA synchronous=NORMAL;",
-		"PRAGMA foreign_keys=ON;",
-	}
-	for _, p := range pragmas {
-		if _, err := db.Exec(p); err != nil {
-			_ = db.Close()
-			return nil, fmt.Errorf("set pragma %s: %w", p, err)
-		}
-	}
-
 	if err := initSchema(db); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -132,7 +77,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_session_created ON messages(session_id, 
 	return nil
 }
 
-func (s *Store) CreateSession(ctx context.Context, session SessionRecord) error {
+func (s *Store) CreateSession(ctx context.Context, session models.SessionRecord) error {
 	if session.Status == "" {
 		session.Status = StatusStreaming
 	}
@@ -153,7 +98,7 @@ ON CONFLICT(id) DO UPDATE SET
 	return nil
 }
 
-func (s *Store) InsertMessage(ctx context.Context, msg MessageRecord) error {
+func (s *Store) InsertMessage(ctx context.Context, msg models.MessageRecord) error {
 	if msg.Status == "" {
 		msg.Status = StatusStreaming
 	}
@@ -216,7 +161,7 @@ func (s *Store) MarkMessageStatus(ctx context.Context, msgID, status, finishReas
 	}
 	_, err := s.db.ExecContext(ctx, `
 UPDATE messages
-SET status = ?, 
+SET status = ?,
     finish_reason = CASE WHEN ? <> '' THEN ? ELSE finish_reason END,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?
@@ -264,7 +209,7 @@ func (s *Store) Now() time.Time {
 }
 
 // ListSessions 按 rowid 倒序分页列出会话
-func (s *Store) ListSessions(ctx context.Context, cursor int64, limit int) ([]SessionWithMeta, error) {
+func (s *Store) ListSessions(ctx context.Context, cursor int64, limit int) ([]models.SessionWithMeta, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -283,9 +228,9 @@ LIMIT ?
 	}
 	defer rows.Close()
 
-	var sessions []SessionWithMeta
+	var sessions []models.SessionWithMeta
 	for rows.Next() {
-		var rec SessionWithMeta
+		var rec models.SessionWithMeta
 		if err := rows.Scan(&rec.RowID, &rec.ID, &rec.Symbol, &rec.TradeDate, &rec.Prompt, &rec.Status, &rec.CreatedAt, &rec.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan session: %w", err)
 		}
@@ -297,7 +242,7 @@ LIMIT ?
 	return sessions, nil
 }
 
-func (s *Store) GetSession(ctx context.Context, sessionID string) (*SessionWithMeta, error) {
+func (s *Store) GetSession(ctx context.Context, sessionID string) (*models.SessionWithMeta, error) {
 	if strings.TrimSpace(sessionID) == "" {
 		return nil, fmt.Errorf("session id is required")
 	}
@@ -308,7 +253,7 @@ WHERE id = ?
 LIMIT 1
 `, sessionID)
 
-	var rec SessionWithMeta
+	var rec models.SessionWithMeta
 	if err := row.Scan(&rec.RowID, &rec.ID, &rec.Symbol, &rec.TradeDate, &rec.Prompt, &rec.Status, &rec.CreatedAt, &rec.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -318,7 +263,7 @@ LIMIT 1
 	return &rec, nil
 }
 
-func (s *Store) ListMessages(ctx context.Context, sessionID string) ([]MessageWithMeta, error) {
+func (s *Store) ListMessages(ctx context.Context, sessionID string) ([]models.MessageWithMeta, error) {
 	if strings.TrimSpace(sessionID) == "" {
 		return nil, fmt.Errorf("session id is required")
 	}
@@ -333,9 +278,9 @@ ORDER BY seq ASC
 	}
 	defer rows.Close()
 
-	var msgs []MessageWithMeta
+	var msgs []models.MessageWithMeta
 	for rows.Next() {
-		var rec MessageWithMeta
+		var rec models.MessageWithMeta
 		if err := rows.Scan(&rec.ID, &rec.SessionID, &rec.Role, &rec.Agent, &rec.Content, &rec.Status, &rec.FinishReason, &rec.Seq, &rec.CreatedAt, &rec.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan message: %w", err)
 		}

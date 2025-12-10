@@ -11,7 +11,7 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/agents"
 	"github.com/dyike/CortexGo/internal/graph"
-	"github.com/dyike/CortexGo/internal/storage/sqlite"
+	"github.com/dyike/CortexGo/internal/storage"
 	"github.com/dyike/CortexGo/models"
 	"github.com/dyike/CortexGo/pkg/bridge"
 	"github.com/dyike/CortexGo/pkg/utils"
@@ -52,11 +52,11 @@ func StartAgentStream(paramsJson string) (any, error) {
 	}
 
 	sessionID := utils.RandStr(16)
-	store, err := getSQLiteStore()
+	store, err := storage.GetSQLiteStore()
 	if err != nil {
 		return nil, fmt.Errorf("init sqlite: %w", err)
 	}
-	recorder, err := sqlite.NewStreamRecorder(ctx, store, sqlite.SessionRecord{
+	recorder, err := storage.NewStreamRecorder(ctx, store, models.SessionRecord{
 		ID:        sessionID,
 		Symbol:    params.Symbol,
 		TradeDate: params.TradeDate,

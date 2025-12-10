@@ -1,4 +1,4 @@
-package sqlite
+package storage
 
 import (
 	"context"
@@ -30,7 +30,7 @@ type recordEvent struct {
 
 type StreamRecorder struct {
 	store   *Store
-	session SessionRecord
+	session models.SessionRecord
 
 	events chan recordEvent
 	done   chan struct{}
@@ -44,7 +44,7 @@ type StreamRecorder struct {
 	hasError        bool
 }
 
-func NewStreamRecorder(ctx context.Context, store *Store, session SessionRecord) (*StreamRecorder, error) {
+func NewStreamRecorder(ctx context.Context, store *Store, session models.SessionRecord) (*StreamRecorder, error) {
 	if store == nil {
 		return nil, errors.New("store is required")
 	}
@@ -302,7 +302,7 @@ func (r *StreamRecorder) ensureMessage(ctx context.Context, msgID, role, agent, 
 		status = StatusStreaming
 	}
 	r.messageSeq++
-	if err := r.store.InsertMessage(ctx, MessageRecord{
+	if err := r.store.InsertMessage(ctx, models.MessageRecord{
 		ID:        msgID,
 		SessionID: r.session.ID,
 		Role:      role,

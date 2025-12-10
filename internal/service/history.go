@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/dyike/CortexGo/internal/storage"
 	"github.com/dyike/CortexGo/models"
 )
 
@@ -37,7 +38,7 @@ func GetAgentHistory(paramsJson string) (any, error) {
 		cursor = val
 	}
 
-	store, err := getSQLiteStore()
+	store, err := storage.GetSQLiteStore()
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
@@ -85,7 +86,7 @@ func GetHistoryInfo(paramsJson string) (any, error) {
 		return nil, errors.New("session_id is required")
 	}
 
-	store, err := getSQLiteStore()
+	store, err := storage.GetSQLiteStore()
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
