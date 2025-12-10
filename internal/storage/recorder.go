@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -215,6 +216,9 @@ func (r *StreamRecorder) handleChunk(ctx context.Context, data *models.ChatResp)
 	}
 
 	raw := data.Content
+	if raw == "" {
+		raw = toolCallContent(data)
+	}
 	if raw != "" {
 		existing := r.messageContent[data.ID]
 		delta := raw
@@ -315,4 +319,34 @@ func (r *StreamRecorder) ensureMessage(ctx context.Context, msgID, role, agent, 
 	r.messageSeen[msgID] = struct{}{}
 	r.messageProgress[msgID] = 0
 	return nil
+}
+
+func toolCallContent(data *models.ChatResp) string {
+	if data == nil {
+		return ""
+	}
+
+	if len(data.ToolCallChunks) > 0 {
+		tc := data.ToolCallChunks[0]
+		args := strings.TrimSpace(tc.Args)
+		if args != "" {
+			name := strings.TrimSpace(tc.Name)
+			if name != "" {
+				return fmt.Sprintf("[tool_call:%s] %s", name, args)
+			}
+			return args
+		}
+	}
+
+	if len(data.ToolCalls) > 0 && len(data.ToolCalls[0].Args) > 0 {
+		if argJSON, err := json.Marshal(data.ToolCalls[0].Args); err == nil {
+			name := strings.TrimSpace(data.ToolCalls[0].Name)
+			if name != "" {
+				return fmt.Sprintf("[tool_call:%s] %s", name, string(argJSON))
+			}
+			return string(argJSON)
+		}
+	}
+
+	return ""
 }

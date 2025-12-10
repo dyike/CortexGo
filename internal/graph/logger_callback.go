@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -60,28 +61,32 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 	if len(msg.ToolCalls) > 0 {
 		event := "tool_call_chunks"
 		if len(msg.ToolCalls) != 1 {
-
 			return nil
 		}
 
 		ts := []models.ToolResp{}
 		tcs := []models.ToolChunkResp{}
+		argStr := strings.TrimSpace(msg.ToolCalls[0].Function.Arguments)
+		argMap := map[string]any{}
+		if argStr != "" {
+			if err := json.Unmarshal([]byte(argStr), &argMap); err != nil {
+				argMap["_raw"] = argStr
+			}
+		}
+
 		fn := msg.ToolCalls[0].Function.Name
 		if len(fn) > 0 {
 			event = "tool_calls"
-			if strings.HasSuffix(fn, "search") {
-				fn = "web_search"
-			}
 			ts = append(ts, models.ToolResp{
 				Name: fn,
-				Args: map[string]interface{}{},
+				Args: argMap,
 				Type: "tool_call",
 				ID:   msg.ToolCalls[0].ID,
 			})
 		}
 		tcs = append(tcs, models.ToolChunkResp{
 			Name: fn,
-			Args: msg.ToolCalls[0].Function.Arguments,
+			Args: argStr,
 			Type: "tool_call_chunk",
 			ID:   msg.ToolCalls[0].ID,
 		})
@@ -93,21 +98,10 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 }
 
 func (cb *LoggerCallback) OnStart(ctx context.Context, info *callbacks.RunInfo, input callbacks.CallbackInput) context.Context {
-	if inputStr, ok := input.(string); ok {
-		if cb.Emit != nil {
-			cb.Emit("run_start", &models.ChatResp{
-				Role:    "system",
-				Content: fmt.Sprintf("[OnStart] %s", inputStr),
-			})
-		}
-	}
 	return ctx
 }
 
 func (cb *LoggerCallback) OnEnd(ctx context.Context, info *callbacks.RunInfo, output callbacks.CallbackOutput) context.Context {
-	// fmt.Println("=========[OnEnd]=========", info.Name, "|", info.Component, "|", info.Type)
-	// outputStr, _ := json.MarshalIndent(output, "", "  ")
-	// fmt.Println(string(outputStr))
 	return ctx
 }
 
