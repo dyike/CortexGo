@@ -14,9 +14,10 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
+	"github.com/dyike/CortexGo/internal/prompts"
 	"github.com/dyike/CortexGo/internal/tools"
-	"github.com/dyike/CortexGo/internal/utils"
 	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 func NewMarketAnalyst[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
@@ -93,7 +94,7 @@ For your reference, the current date is {current_date}. The company we want to l
 
 The output content should be in Chinese.
 `
-		systemPrompt, _ := utils.LoadPrompt("analysts/market_analyst")
+		systemPrompt, _ := prompts.LoadPrompt("analysts/market_analyst")
 		// 创建prompt模板
 		promptTemp := prompt.FromMessages(schema.FString,
 			schema.SystemMessage(systemTpl),

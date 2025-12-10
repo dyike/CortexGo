@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type MarketDataInput struct {
 	Symbol string `json:"symbol"`
 	Count  int    `json:"count"`
@@ -39,3 +41,10 @@ type IndicatorValue struct {
 	Value float64
 }
 
+type CachedData struct {
+	Data      []*MarketData
+	Symbol    string
+	Count     int
+	Timestamp time.Time
+	TTL       time.Duration
+}

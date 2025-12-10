@@ -11,8 +11,9 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/internal/prompts"
 	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 func NewSafeAnalystNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
@@ -42,7 +43,7 @@ func loadSafeMsg(ctx context.Context, name string, opts ...any) (output []*schem
 		}
 
 		// Load prompt from external markdown file
-		systemPrompt, _ := utils.LoadPrompt("risk_mgmt/safe_debate")
+		systemPrompt, _ := prompts.LoadPrompt("risk_mgmt/safe_debate")
 
 		// Create prompt template
 		promptTemp := prompt.FromMessages(schema.FString,

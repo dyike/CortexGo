@@ -10,8 +10,9 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/internal/prompts"
 	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 func riskManagerRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
@@ -79,7 +80,7 @@ func loadRiskManagerMessages(ctx context.Context, name string, opts ...any) (out
 		_ = currSituation // For future memory integration
 
 		// Load prompt from external markdown file
-		systemPrompt, _ := utils.LoadPrompt("managers/risk_manager")
+		systemPrompt, _ := prompts.LoadPrompt("managers/risk_manager")
 
 		// Create prompt template
 		promptTemp := prompt.FromMessages(schema.FString,

@@ -11,8 +11,9 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/internal/prompts"
 	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 func researchManagerRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
@@ -78,7 +79,7 @@ func loadResearchManagerMessages(ctx context.Context, name string, opts ...any) 
 		_ = currSituation // For future memory integration
 
 		// Load prompt from external markdown file
-		systemPrompt, _ := utils.LoadPrompt("managers/research_manager")
+		systemPrompt, _ := prompts.LoadPrompt("managers/research_manager")
 
 		// Create prompt template
 		promptTemp := prompt.FromMessages(schema.FString,

@@ -12,8 +12,9 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/internal/prompts"
 	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 func NewBullResearcherNode[I, O any](ctx context.Context, cfg *config.Config) *compose.Graph[I, O] {
@@ -90,7 +91,7 @@ func loadBullResearcherMessages(ctx context.Context, name string, opts ...any) (
 		// 	pastMemoryStr.WriteString(fmt.Sprintf("%d. %s\n\n", i+1, rec.Recommendation))
 		// }
 
-		ptl, err := utils.LoadPrompt("researchers/bull_researcher")
+		ptl, err := prompts.LoadPrompt("researchers/bull_researcher")
 		if err != nil {
 			return err
 		}

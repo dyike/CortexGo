@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dyike/CortexGo/internal/utils"
 	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 type recordKind int

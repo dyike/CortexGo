@@ -1,4 +1,4 @@
-package utils
+package prompts
 
 import (
 	"embed"
@@ -6,12 +6,12 @@ import (
 	"strings"
 )
 
-//go:embed prompts
+//go:embed **/*.md
 var promptFiles embed.FS
 
 // LoadPrompt loads a prompt from the embedded markdown files
 func LoadPrompt(path string) (string, error) {
-	content, err := promptFiles.ReadFile(fmt.Sprintf("prompts/%s.md", path))
+	content, err := promptFiles.ReadFile(fmt.Sprintf("%s.md", path))
 	if err != nil {
 		return "", fmt.Errorf("failed to load prompt %s: %w", path, err)
 	}

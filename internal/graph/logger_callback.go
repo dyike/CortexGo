@@ -11,8 +11,8 @@ import (
 	ecmodel "github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-	"github.com/dyike/CortexGo/internal/utils"
 	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 type LoggerCallback struct {
@@ -112,8 +112,6 @@ func (cb *LoggerCallback) OnEnd(ctx context.Context, info *callbacks.RunInfo, ou
 }
 
 func (cb *LoggerCallback) OnError(ctx context.Context, info *callbacks.RunInfo, err error) context.Context {
-	fmt.Println("=========[OnError]=========")
-	fmt.Println(err)
 	if cb.Emit != nil {
 		cb.Emit("error", &models.ChatResp{
 			Role:    "system",

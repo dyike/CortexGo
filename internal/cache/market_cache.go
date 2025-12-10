@@ -8,23 +8,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dyike/CortexGo/internal/utils"
 	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 type MarketDataCache struct {
-	memoryCache map[string]*CachedData
+	memoryCache map[string]*models.CachedData
 	csvManager  *utils.CSVManager
 	mu          sync.RWMutex
 	basePath    string
-}
-
-type CachedData struct {
-	Data      []*models.MarketData
-	Symbol    string
-	Count     int
-	Timestamp time.Time
-	TTL       time.Duration
 }
 
 var (
@@ -36,7 +28,7 @@ func GetMarketDataCache() *MarketDataCache {
 	once.Do(func() {
 		basePath := "data" // 可以从配置文件读取
 		globalCache = &MarketDataCache{
-			memoryCache: make(map[string]*CachedData),
+			memoryCache: make(map[string]*models.CachedData),
 			csvManager:  utils.NewCSVManager(basePath),
 			basePath:    basePath,
 		}
@@ -68,7 +60,7 @@ func (c *MarketDataCache) Get(ctx context.Context, symbol string, count int) ([]
 				log.Printf("Using CSV cache for %s (count: %d) from file: %s", symbol, count, filepath.Base(csvFile))
 
 				// 将数据加载到内存缓存
-				c.memoryCache[key] = &CachedData{
+				c.memoryCache[key] = &models.CachedData{
 					Data:      data[:min(count, len(data))],
 					Symbol:    symbol,
 					Count:     count,
@@ -98,7 +90,7 @@ func (c *MarketDataCache) Set(ctx context.Context, symbol string, count int, dat
 	now := time.Now()
 
 	// 1. 保存到内存缓存
-	c.memoryCache[key] = &CachedData{
+	c.memoryCache[key] = &models.CachedData{
 		Data:      data,
 		Symbol:    symbol,
 		Count:     count,
@@ -127,7 +119,7 @@ func min(a, b int) int {
 func (c *MarketDataCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.memoryCache = make(map[string]*CachedData)
+	c.memoryCache = make(map[string]*models.CachedData)
 	log.Printf("Cleared memory cache")
 }
 

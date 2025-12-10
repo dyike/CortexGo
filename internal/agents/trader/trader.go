@@ -11,8 +11,9 @@ import (
 	"github.com/dyike/CortexGo/config"
 	"github.com/dyike/CortexGo/consts"
 	"github.com/dyike/CortexGo/internal/agents"
-	"github.com/dyike/CortexGo/internal/utils"
+	"github.com/dyike/CortexGo/internal/prompts"
 	"github.com/dyike/CortexGo/models"
+	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 func traderRouter(ctx context.Context, input *schema.Message, opts ...any) (output string, err error) {
@@ -68,7 +69,7 @@ func loadTraderMessages(ctx context.Context, name string, opts ...any) (output [
 		_ = currSituation // For future memory integration
 
 		// Load prompt from external markdown file
-		systemPrompt, _ := utils.LoadPrompt("trader/trader")
+		systemPrompt, _ := prompts.LoadPrompt("trader/trader")
 
 		// Create system prompt with past memory context using string replacement
 		systemPromptWithContext := strings.ReplaceAll(systemPrompt, "{past_memory_str}", pastMemoryStr)
