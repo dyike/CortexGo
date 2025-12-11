@@ -121,7 +121,25 @@ func (r *StreamRecorder) RecordUserPrompt(prompt string) {
 
 func (r *StreamRecorder) HandleStreamEvent(event string, data *models.ChatResp) {
 	switch event {
-	case "message_chunk", "tool_calls", "tool_call_chunks", "tool_call_result":
+	case "message_chunk", "tool_calls", "tool_call_chunks", "tool_call_result",
+		"message_delta", "message_done",
+		"tool_call_started", "tool_call_args_delta", "tool_call_args_done":
+		if data != nil {
+			switch event {
+			case "message_done":
+				if strings.TrimSpace(data.FinishReason) == "" {
+					data.FinishReason = "done"
+				}
+			case "tool_call_started":
+				if strings.TrimSpace(data.FinishReason) == "" {
+					data.FinishReason = "started"
+				}
+			case "tool_call_args_done":
+				if strings.TrimSpace(data.FinishReason) == "" {
+					data.FinishReason = "done"
+				}
+			}
+		}
 		r.enqueue(recordEvent{kind: recordChunk, data: data})
 	case "run_start":
 		r.enqueue(recordEvent{kind: recordSystem, data: data})
@@ -215,12 +233,13 @@ func (r *StreamRecorder) handleChunk(ctx context.Context, data *models.ChatResp)
 		return
 	}
 
+	existing := r.messageContent[data.ID]
+
 	raw := data.Content
 	if raw == "" {
-		raw = toolCallContent(data)
+		raw = toolCallContent(data, existing)
 	}
 	if raw != "" {
-		existing := r.messageContent[data.ID]
 		delta := raw
 
 		switch {
@@ -321,32 +340,54 @@ func (r *StreamRecorder) ensureMessage(ctx context.Context, msgID, role, agent, 
 	return nil
 }
 
-func toolCallContent(data *models.ChatResp) string {
+func toolCallContent(data *models.ChatResp, existing string) string {
 	if data == nil {
-		return ""
+		return existing
 	}
 
-	if len(data.ToolCallChunks) > 0 {
+	name := ""
+	rawChunk := ""
+	fullArgs := ""
+
+	if len(data.ToolCalls) > 0 {
+		name = strings.TrimSpace(data.ToolCalls[0].Name)
+		if len(data.ToolCalls[0].Args) > 0 {
+			if raw, ok := data.ToolCalls[0].Args["_raw"]; ok {
+				if s, ok := raw.(string); ok {
+					rawChunk = s
+				}
+			}
+			if rawChunk == "" && existing == "" {
+				if argJSON, err := json.Marshal(data.ToolCalls[0].Args); err == nil {
+					fullArgs = string(argJSON)
+				}
+			}
+		}
+	}
+
+	if rawChunk == "" && len(data.ToolCallChunks) > 0 {
 		tc := data.ToolCallChunks[0]
-		args := strings.TrimSpace(tc.Args)
-		if args != "" {
-			name := strings.TrimSpace(tc.Name)
-			if name != "" {
-				return fmt.Sprintf("[tool_call:%s] %s", name, args)
-			}
-			return args
+		if name == "" {
+			name = strings.TrimSpace(tc.Name)
 		}
+		rawChunk = strings.TrimSpace(tc.Args)
 	}
 
-	if len(data.ToolCalls) > 0 && len(data.ToolCalls[0].Args) > 0 {
-		if argJSON, err := json.Marshal(data.ToolCalls[0].Args); err == nil {
-			name := strings.TrimSpace(data.ToolCalls[0].Name)
-			if name != "" {
-				return fmt.Sprintf("[tool_call:%s] %s", name, string(argJSON))
-			}
-			return string(argJSON)
+	if rawChunk != "" {
+		addition := rawChunk
+		if existing == "" && name != "" {
+			addition = rawChunk
 		}
+		return existing + addition
 	}
 
-	return ""
+	if fullArgs != "" {
+		addition := fullArgs
+		if existing == "" && name != "" {
+			addition = fullArgs
+		}
+		return existing + addition
+	}
+
+	return existing
 }
