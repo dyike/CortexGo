@@ -27,7 +27,7 @@ func GetSQLiteStore() (*Store, error) {
 			return
 		}
 		dbPath := filepath.Join(dataDir, "agent.db")
-		sqliteStoreInst, sqliteStoreErr = Open(dbPath)
+		sqliteStoreInst, sqliteStoreErr = NewStore(dbPath)
 	})
 	return sqliteStoreInst, sqliteStoreErr
 }

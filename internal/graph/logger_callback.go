@@ -11,24 +11,33 @@ import (
 
 	"github.com/cloudwego/eino/callbacks"
 	ecmodel "github.com/cloudwego/eino/components/model"
-	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/models"
 	"github.com/dyike/CortexGo/pkg/utils"
 )
 
+type toolCallInfo struct {
+	id               string
+	name             string
+	argumentsBuilder strings.Builder
+}
+
 type LoggerCallback struct {
 	callbacks.HandlerBuilder
 
-	Emit            func(event string, data *models.ChatResp)
-	toolCallCacheMu sync.Mutex
-	toolCallCache   map[string]toolCallInfo // key: stream message ID
+	Emit func(event string, data *models.ChatResp)
+
+	// 运行时状态追踪
+	currentContent strings.Builder
+	toolCalls      map[string]*toolCallInfo // key: tool_call ID
+	stateLock      sync.Mutex
 }
 
-type toolCallInfo struct {
-	id      string
-	name    string
-	started bool
+func NewLoggerCallback(emit func(event string, data *models.ChatResp)) *LoggerCallback {
+	return &LoggerCallback{
+		Emit:      emit,
+		toolCalls: make(map[string]*toolCallInfo),
+	}
 }
 
 func (cb *LoggerCallback) OnStart(ctx context.Context, info *callbacks.RunInfo, input callbacks.CallbackInput) context.Context {
@@ -49,9 +58,25 @@ func (cb *LoggerCallback) OnError(ctx context.Context, info *callbacks.RunInfo, 
 	return ctx
 }
 
+// User prompt and System prompt
+func (cb *LoggerCallback) OnStartWithStreamInput(ctx context.Context, info *callbacks.RunInfo,
+	input *schema.StreamReader[callbacks.CallbackInput]) context.Context {
+	defer input.Close() // remember to close the stream in defer
+	return ctx
+}
+
+// AI返回的结果
 func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callbacks.RunInfo,
 	output *schema.StreamReader[callbacks.CallbackOutput]) context.Context {
+
+	// 在开始处理新流之前，清空状态以避免数据混淆
+	cb.stateLock.Lock()
+	cb.currentContent.Reset()
+	cb.toolCalls = make(map[string]*toolCallInfo)
+	cb.stateLock.Unlock()
+
 	msgID := utils.RandStr(20)
+
 	go func() {
 		defer output.Close() // remember to close the stream in defer
 		defer func() {
@@ -62,10 +87,12 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 		for {
 			frame, err := output.Recv()
 			if errors.Is(err, io.EOF) {
+				cb.flushCurrentAssistantMessage(true)
 				break
 			}
 			if err != nil {
 				fmt.Println("=========[OnEndStream]recv_error=========", err)
+				cb.flushCurrentAssistantMessage(true)
 				return
 			}
 
@@ -78,10 +105,7 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 				for _, m := range v {
 					_ = cb.pushMsg(ctx, msgID, m)
 				}
-			//case string:
-			//	ilog.EventInfo(ctx, "frame_type", "type", "str", "v", v)
 			default:
-				//ilog.EventInfo(ctx, "frame_type", "type", "unknown", "v", v)
 			}
 		}
 
@@ -89,196 +113,176 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 	return ctx
 }
 
-func (cb *LoggerCallback) OnStartWithStreamInput(ctx context.Context, info *callbacks.RunInfo,
-	input *schema.StreamReader[callbacks.CallbackInput]) context.Context {
-	defer input.Close()
-	return ctx
-}
-
-func (cb *LoggerCallback) pushF(ctx context.Context, event string, data *models.ChatResp) error {
-	if cb.Emit != nil && data != nil {
-		cb.Emit(event, data)
-	}
-	return nil
-}
-
 func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema.Message) error {
 	if msg == nil {
 		return nil
 	}
 
-	agentName := ""
-	_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-		agentName = state.Goto
+	cb.stateLock.Lock()
+	defer cb.stateLock.Unlock()
+
+	if cb.Emit == nil {
 		return nil
-	})
-
-	dataID := msgID
-	role := "assistant"
-	if strings.TrimSpace(string(msg.Role)) != "" {
-		role = string(msg.Role)
 	}
 
-	fr := ""
-	if msg.ResponseMeta != nil {
-		fr = msg.ResponseMeta.FinishReason
-	}
-	data := &models.ChatResp{
-		Agent:         agentName,
-		ID:            dataID,
-		Role:          role,
-		Content:       msg.Content,
-		FinishReason:  fr,
-		MessageChunks: msg.Content,
-	}
-
+	// --- 1. 处理工具执行结果 (Role: tool) ---
+	// 这种消息通常是完整的，直接发送用于持久化
 	if msg.Role == schema.Tool {
-		tcInfo := cb.getToolCallInfo(msgID)
-		callID := strings.TrimSpace(msg.ToolCallID)
-		if callID == "" {
-			callID = tcInfo.id
+		cb.flushCurrentAssistantMessage(true)
+
+		var toolMsgs []struct {
+			Role       string `json:"role"`
+			Content    string `json:"content"`
+			ToolCallId string `json:"tool_call_id"`
+			ToolName   string `json:"tool_name"`
 		}
-		if callID == "" {
-			callID = msgID + ":tc"
+		if err := json.Unmarshal([]byte(msg.Content), &toolMsgs); err == nil && len(toolMsgs) > 0 {
+			cb.Emit("tool_result_final", &models.ChatResp{
+				Role:       toolMsgs[0].Role,
+				Content:    toolMsgs[0].Content,
+				ToolCallId: toolMsgs[0].ToolCallId,
+			})
 		}
-		data.ID = callID + ":result"
-		data.ToolCallID = callID
-		return cb.pushF(ctx, "tool_call_result", data)
+		return nil
+	}
+	// --- 2. 处理 LLM 助手流 (Role: assistant) ---
+	// A. 累积文本内容
+	if msg.Content != "" {
+		cb.currentContent.WriteString(msg.Content)
+
+		cb.Emit("text_chunk", &models.ChatResp{
+			Role:    string(msg.Role),
+			Content: msg.Content,
+		})
 	}
 
-	if len(msg.ToolCalls) > 0 {
-		if len(msg.ToolCalls) != 1 {
-			return nil
-		}
+	// B. 累积工具调用参数
+	if msg.ToolCalls != nil {
+		for _, tc := range msg.ToolCalls {
+			info, exists := cb.toolCalls[tc.ID]
 
-		tcInfo := cb.getToolCallInfo(msgID)
-		tcID := strings.TrimSpace(msg.ToolCalls[0].ID)
-		fn := strings.TrimSpace(msg.ToolCalls[0].Function.Name)
-		if tcID == "" {
-			tcID = tcInfo.id
-		}
-		if fn == "" {
-			fn = tcInfo.name
-		}
-		if tcID == "" {
-			tcID = msgID + ":tc"
-		}
-		cb.rememberToolCall(msgID, tcID, fn)
-		argStr := strings.TrimSpace(msg.ToolCalls[0].Function.Arguments)
-		argMap := map[string]any{}
-		if argStr != "" {
-			if err := json.Unmarshal([]byte(argStr), &argMap); err != nil {
-				argMap["_raw"] = argStr
+			if !exists && tc.ID != "" {
+				// 第一次看到带有 ID 的工具调用，初始化
+				info = &toolCallInfo{id: tc.ID}
+				cb.toolCalls[tc.ID] = info
+			} else if !exists {
+				// 如果 ID 为空，尝试附加到当前唯一的工具调用上
+				if len(cb.toolCalls) == 1 {
+					for _, activeInfo := range cb.toolCalls {
+						info = activeInfo
+						break
+					}
+				} else {
+					continue // 无法确定累积到哪个，跳过
+				}
+			}
+
+			// 确保找到了 info
+			if info == nil {
+				continue
+			}
+
+			// 更新 name
+			if tc.Function.Name != "" {
+				info.name = tc.Function.Name
+			}
+
+			// 累积 arguments
+			if tc.Function.Arguments != "" {
+				info.argumentsBuilder.WriteString(tc.Function.Arguments)
+
+				// 实时流式回调：发送工具调用参数片段（可选，用于显示工具调用过程）
+				if cb.Emit != nil {
+					// 只发送包含 ID 的片段，没有ID的参数片段不具意义
+					if tc.ID != "" || info.id != "" {
+						cb.Emit("tool_call_chunk", &models.ChatResp{
+							Role: string(msg.Role),
+							ToolCalls: []*models.ToolCall{
+								&models.ToolCall{
+									Id:   info.id,
+									Type: tc.Type,
+									Function: struct {
+										Name      string "json:\"name\""
+										Arguments string "json:\"arguments\""
+									}{
+										Name:      info.name,
+										Arguments: tc.Function.Arguments,
+									},
+								},
+							},
+						})
+					}
+				}
 			}
 		}
-
-		ts := []models.ToolResp{{
-			Name: fn,
-			Args: argMap,
-			Type: "tool_call",
-			ID:   tcID,
-		}}
-		tcs := []models.ToolChunkResp{{
-			Name: fn,
-			Args: argStr,
-			Type: "tool_call_chunk",
-			ID:   tcID,
-		}}
-
-		if !tcInfo.started {
-			_ = cb.pushF(ctx, "message_delta", &models.ChatResp{
-				Agent:         agentName,
-				ID:            msgID,
-				Role:          role,
-				Content:       msg.Content,
-				FinishReason:  "",
-				MessageChunks: msg.Content,
-			})
-			cb.markToolStarted(msgID, tcID, fn)
-			_ = cb.pushF(ctx, "tool_call_started", &models.ChatResp{
-				Agent:          agentName,
-				ID:             tcID + ":name",
-				Role:           role,
-				Content:        fn,
-				ToolCallID:     tcID,
-				ToolCalls:      ts,
-				ToolCallChunks: tcs,
-			})
-		}
-
-		if argStr != "" {
-			_ = cb.pushF(ctx, "tool_call_args_delta", &models.ChatResp{
-				Agent:          agentName,
-				ID:             tcID + ":args",
-				Role:           role,
-				Content:        argStr,
-				ToolCallID:     tcID,
-				ToolCalls:      ts,
-				ToolCallChunks: tcs,
-			})
-		}
-
-		if fr != "" {
-			_ = cb.pushF(ctx, "tool_call_args_done", &models.ChatResp{
-				Agent:          agentName,
-				ID:             tcID + ":args",
-				Role:           role,
-				FinishReason:   fr,
-				ToolCallID:     tcID,
-				ToolCalls:      ts,
-				ToolCallChunks: tcs,
-			})
-		}
-		return nil
+	}
+	// C. 检查结束标志并发送最终消息
+	if msg.ResponseMeta != nil &&
+		(msg.ResponseMeta.FinishReason == "stop" || msg.ResponseMeta.FinishReason == "tool_calls") {
+		cb.flushCurrentAssistantMessage(false) // 正常结束，进行落地
 	}
 
-	if fr != "" {
-		data.FinishReason = fr
-		_ = cb.pushF(ctx, "message_delta", data)
-		data.Content = ""
-		return cb.pushF(ctx, "message_done", data)
-	}
+	// agentName := ""
+	// _ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
+	// 	agentName = state.Goto
+	// 	return nil
+	// })
 
-	return cb.pushF(ctx, "message_delta", data)
+	return nil
 }
 
-func (cb *LoggerCallback) rememberToolCall(streamMsgID, callID, fn string) {
-	if strings.TrimSpace(streamMsgID) == "" || strings.TrimSpace(callID) == "" {
-		return
-	}
-	if cb.toolCallCache == nil {
-		cb.toolCallCache = make(map[string]toolCallInfo)
-	}
-	cb.toolCallCacheMu.Lock()
-	info := cb.toolCallCache[streamMsgID]
-	info.id = callID
-	if fn != "" {
-		info.name = fn
-	}
-	cb.toolCallCache[streamMsgID] = info
-	cb.toolCallCacheMu.Unlock()
-}
+func (cb *LoggerCallback) flushCurrentAssistantMessage(force bool) {
 
-func (cb *LoggerCallback) getToolCallInfo(streamMsgID string) toolCallInfo {
-	if cb == nil || cb.toolCallCache == nil || strings.TrimSpace(streamMsgID) == "" {
-		return toolCallInfo{}
-	}
-	cb.toolCallCacheMu.Lock()
-	defer cb.toolCallCacheMu.Unlock()
-	return cb.toolCallCache[streamMsgID]
-}
+	// 聚合的文本内容或工具调用请求是本次 Assistant 消息的有效载荷
+	hasContent := cb.currentContent.Len() > 0
+	hasToolCalls := len(cb.toolCalls) > 0
 
-func (cb *LoggerCallback) markToolStarted(streamMsgID, callID, fn string) {
-	if cb.toolCallCache == nil {
-		cb.toolCallCache = make(map[string]toolCallInfo)
+	if !hasContent && !hasToolCalls && !force {
+		return // 没有内容，且不是强制落地，直接返回
 	}
-	cb.toolCallCacheMu.Lock()
-	info := cb.toolCallCache[streamMsgID]
-	info.id = callID
-	if fn != "" {
-		info.name = fn
+
+	// 1. 聚合工具调用请求
+	var finalToolCalls []*models.ToolCall
+	if hasToolCalls {
+		for id, info := range cb.toolCalls {
+			// 确保参数是有效的 JSON，虽然聚合后的字符串可能不是严格有效的，但我们尽力而为
+			tc := &models.ToolCall{
+				Id:   id,
+				Type: "function", // 假设类型
+				Function: struct {
+					Name      string `json:"name"`
+					Arguments string `json:"arguments"`
+				}{
+					Name:      info.name,
+					Arguments: info.argumentsBuilder.String(), // 完整的参数 JSON 字符串
+				},
+			}
+			finalToolCalls = append(finalToolCalls, tc)
+		}
 	}
-	info.started = true
-	cb.toolCallCache[streamMsgID] = info
-	cb.toolCallCacheMu.Unlock()
+
+	// 2. 构建最终消息
+	finalMsg := &models.ChatResp{
+		Role:      "assistant",
+		Content:   cb.currentContent.String(),
+		ToolCalls: finalToolCalls,
+	}
+
+	// 3. 触发持久化回调
+	if cb.Emit != nil {
+		if hasToolCalls {
+			// 优先发送工具调用请求的最终消息 (Persistence)
+			cb.Emit("tool_call_request_final", finalMsg)
+		} else if hasContent {
+			// 发送纯文本的最终消息 (Persistence)
+			cb.Emit("text_final", finalMsg)
+		} else if force {
+			// 强制落地，但没有内容，可以发送一个空消息（根据业务需求决定是否需要）
+			// 为了简化，我们只在有内容或工具调用时发送
+		}
+	}
+
+	// 4. 清理状态，准备接收下一轮消息
+	cb.currentContent.Reset()
+	cb.toolCalls = make(map[string]*toolCallInfo)
 }
