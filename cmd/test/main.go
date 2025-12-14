@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -48,9 +49,11 @@ func main() {
 		compose.WithCallbacks(&graph.LoggerCallback{
 			Emit: func(event string, data *models.ChatResp) {
 				if data == nil {
+					fmt.Printf("[event=%s] <nil>\n", event)
 					return
 				}
-				fmt.Print(data.Content)
+				payload, _ := json.Marshal(data)
+				fmt.Printf("[event=%s] %s\n", event, string(payload))
 			},
 		}),
 	)
