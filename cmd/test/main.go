@@ -30,7 +30,7 @@ func main() {
 	}
 
 	symbol := "UI.US"
-	tradeDate := "2025-09-23"
+	tradeDate := "2025-12-12"
 
 	parsedDate, err := time.Parse("2006-01-02", tradeDate)
 	if err != nil {

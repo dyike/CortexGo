@@ -22,6 +22,14 @@ type toolCallInfo struct {
 	argumentsBuilder strings.Builder
 }
 
+// toolResultMessage mirrors the JSON structure embedded in tool result frames.
+type toolResultMessage struct {
+	Role       string `json:"role"`
+	Content    string `json:"content"`
+	ToolCallID string `json:"tool_call_id"`
+	ToolName   string `json:"tool_name"`
+}
+
 type LoggerCallback struct {
 	callbacks.HandlerBuilder
 
@@ -130,18 +138,49 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 	if msg.Role == schema.Tool {
 		cb.flushCurrentAssistantMessage(true)
 
-		var toolMsgs []struct {
-			Role       string `json:"role"`
-			Content    string `json:"content"`
-			ToolCallId string `json:"tool_call_id"`
-			ToolName   string `json:"tool_name"`
+		raw := strings.TrimSpace(msg.Content)
+		var toolMsgs []toolResultMessage
+
+		// 支持数组和单个对象两种格式
+		switch {
+		case strings.HasPrefix(raw, "["):
+			_ = json.Unmarshal([]byte(raw), &toolMsgs)
+		case raw != "":
+			var single toolResultMessage
+			if err := json.Unmarshal([]byte(raw), &single); err == nil {
+				toolMsgs = append(toolMsgs, single)
+			}
 		}
-		if err := json.Unmarshal([]byte(msg.Content), &toolMsgs); err == nil && len(toolMsgs) > 0 {
-			cb.Emit("tool_result_final", &models.ChatResp{
-				Role:       toolMsgs[0].Role,
-				Content:    toolMsgs[0].Content,
-				ToolCallId: toolMsgs[0].ToolCallId,
+
+		if len(toolMsgs) == 0 {
+			toolMsgs = append(toolMsgs, toolResultMessage{
+				Role:    string(msg.Role),
+				Content: msg.Content,
 			})
+		}
+
+		for _, tm := range toolMsgs {
+			content := tm.Content
+			// 工具结果的 content 通常是一个 JSON 字符串，这里尝试解码避免双重转义
+			if trimmed := strings.TrimSpace(content); trimmed != "" {
+				var rawBody json.RawMessage
+				if err := json.Unmarshal([]byte(trimmed), &rawBody); err == nil {
+					content = string(rawBody)
+				}
+			}
+
+			finalMsg := &models.ChatResp{
+				Role:       tm.Role,
+				Content:    content,
+				ToolCallId: tm.ToolCallID,
+			}
+			if finalMsg.Role == "" {
+				finalMsg.Role = string(msg.Role)
+			}
+
+			// 先推送分片（便于上层流式消费），再推送最终结果用于持久化
+			cb.Emit("tool_result_chunk", finalMsg)
+			cb.Emit("tool_result_final", finalMsg)
 		}
 		return nil
 	}
