@@ -103,12 +103,15 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 
 			switch v := frame.(type) {
 			case *schema.Message:
-				_ = cb.pushMsg(ctx, agentName, msgID, v)
+				// fmt.Println("info3=", info)
+				// _ = cb.pushMsg(ctx, agentName, msgID, v)
 			case *ecmodel.CallbackOutput:
 				_ = cb.pushMsg(ctx, agentName, msgID, v.Message)
+				// fmt.Println("info1=", info, "msg=", v.Message)
 			case []*schema.Message:
 				for _, m := range v {
 					_ = cb.pushMsg(ctx, agentName, msgID, m)
+					// fmt.Println("info2", info, "msg=", m)
 				}
 			default:
 			}
@@ -139,7 +142,7 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, agentName, msgID string, 
 		cb.flushCurrentAssistantMessage(true)
 		raw := strings.TrimSpace(msg.Content)
 
-		cb.Emit("tool_call_result", &models.ChatResp{
+		cb.Emit("tool_call_result_final", &models.ChatResp{
 			AgentName:  agentName,
 			Role:       string(msg.Role),
 			Content:    raw,
@@ -263,17 +266,9 @@ func (cb *LoggerCallback) flushCurrentAssistantMessage(force bool) {
 	}
 
 	// 3. 触发持久化回调
-	if cb.Emit != nil {
-		if hasToolCalls {
-			// 优先发送工具调用请求的最终消息 (Persistence)
-			cb.Emit("tool_call_request_final", finalMsg)
-		} else if hasContent {
-			// 发送纯文本的最终消息 (Persistence)
-			cb.Emit("text_final", finalMsg)
-		} else if force {
-			// 强制落地，但没有内容，可以发送一个空消息（根据业务需求决定是否需要）
-			// 为了简化，我们只在有内容或工具调用时发送
-		}
+	if cb.Emit != nil && (hasContent || hasToolCalls) {
+		// 文本或工具调用（或二者）统一落地为 text_final
+		cb.Emit("text_final", finalMsg)
 	}
 
 	// 4. 清理状态，准备接收下一轮消息

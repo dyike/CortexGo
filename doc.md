@@ -78,8 +78,8 @@
 
 - `agent.run_start`：启动提示，`payload.role="system"`，`content` 如 `[OnStart] <input>`。
 - `agent.message_chunk`：模型回复分片；`content` 为文本片段，可为空；`tool_calls` 存在时表示工具调用参数分片（与文本合并推送）。
-- `agent.tool_call_result`：工具返回消息，含 `tool_call_id` 与 `content`。
-- `agent.tool_call_request_final` / `agent.text_final`：模型一次完整回复的聚合结果，用于持久化。
+- `agent.tool_call_result_final`：工具返回消息（最终态），含 `tool_call_id` 与 `content`。
+- `agent.text_final`：模型一次完整助手回复的聚合结果（文本与工具调用同一事件），用于持久化。
 - `agent.error`：流执行出错，`payload` 为 `{"error":string}` 或 `{"role":"system","content":string}`。
 - `agent.finished`：流完成，`payload={"status":"completed"}`。
 

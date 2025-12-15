@@ -68,7 +68,7 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 	_ = g.AddEdge(consts.NewsAnalyst, consts.FundamentalsAnalyst)
 	_ = g.AddEdge(consts.FundamentalsAnalyst, consts.BullResearcher)
 
-	// // Conditional branches for debate phase (bull/bear cycle)
+	// Conditional branches for debate phase (bull/bear cycle)
 	_ = g.AddBranch(consts.BullResearcher, compose.NewGraphBranch(ShouldContinueDebate, map[string]bool{
 		consts.BearResearcher:  true,
 		consts.ResearchManager: true,
@@ -78,11 +78,11 @@ func NewTradingOrchestrator[I, O, S any](ctx context.Context, genFunc compose.Ge
 		consts.ResearchManager: true,
 	}))
 
-	// // Sequential edge to trading phase
+	// Sequential edge to trading phase
 	_ = g.AddEdge(consts.ResearchManager, consts.Trader)
 	_ = g.AddEdge(consts.Trader, consts.RiskyAnalyst)
 
-	// // Conditional branches for risk phase (three-way cycle)
+	// Conditional branches for risk phase (three-way cycle)
 	_ = g.AddBranch(consts.RiskyAnalyst, compose.NewGraphBranch(ShouldContinueRiskAnalysis, map[string]bool{
 		consts.SafeAnalyst: true,
 		consts.RiskJudge:   true,
