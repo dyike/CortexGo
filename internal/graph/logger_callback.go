@@ -10,6 +10,7 @@ import (
 
 	"github.com/cloudwego/eino/callbacks"
 	ecmodel "github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/dyike/CortexGo/models"
 	"github.com/dyike/CortexGo/pkg/utils"
@@ -83,6 +84,11 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 				fmt.Println("=========[OnEndStream]panic_recover=========", err)
 			}
 		}()
+		agentName := ""
+		_ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
+			agentName = state.Goto
+			return nil
+		})
 		for {
 			frame, err := output.Recv()
 			if errors.Is(err, io.EOF) {
@@ -97,17 +103,12 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 
 			switch v := frame.(type) {
 			case *schema.Message:
-				// fmt.Println("====1")
-				_ = cb.pushMsg(ctx, msgID, v)
+				_ = cb.pushMsg(ctx, agentName, msgID, v)
 			case *ecmodel.CallbackOutput:
-				// fmt.Println("====2")
-				_ = cb.pushMsg(ctx, msgID, v.Message)
+				_ = cb.pushMsg(ctx, agentName, msgID, v.Message)
 			case []*schema.Message:
-				// vPayload, _ := json.Marshal(v)
-				// rPayload, _ := json.Marshal(frame)
-				// fmt.Println("====3", string(vPayload), string(rPayload))
 				for _, m := range v {
-					_ = cb.pushMsg(ctx, msgID, m)
+					_ = cb.pushMsg(ctx, agentName, msgID, m)
 				}
 			default:
 			}
@@ -117,7 +118,7 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 	return ctx
 }
 
-func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema.Message) error {
+func (cb *LoggerCallback) pushMsg(ctx context.Context, agentName, msgID string, msg *schema.Message) error {
 	if msg == nil {
 		return nil
 	}
@@ -129,6 +130,9 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 		return nil
 	}
 
+	chunkContent := ""
+	var chunkToolCalls []*models.ToolCall
+
 	// --- 1. 处理工具执行结果 (Role: tool) ---
 	// 这种消息通常是完整的，直接发送用于持久化
 	if msg.Role == schema.Tool {
@@ -136,6 +140,7 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 		raw := strings.TrimSpace(msg.Content)
 
 		cb.Emit("tool_call_result", &models.ChatResp{
+			AgentName:  agentName,
 			Role:       string(msg.Role),
 			Content:    raw,
 			ToolCallId: msg.ToolCallID,
@@ -149,10 +154,7 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 	if msg.Content != "" {
 		cb.currentContent.WriteString(msg.Content)
 
-		cb.Emit("text_chunk", &models.ChatResp{
-			Role:    string(msg.Role),
-			Content: msg.Content,
-		})
+		chunkContent = msg.Content
 	}
 
 	// B. 累积工具调用参数
@@ -190,43 +192,37 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 			if tc.Function.Arguments != "" {
 				info.argumentsBuilder.WriteString(tc.Function.Arguments)
 
-				// 实时流式回调：发送工具调用参数片段（可选，用于显示工具调用过程）
-				if cb.Emit != nil {
-					// 只发送包含 ID 的片段，没有ID的参数片段不具意义
-					if tc.ID != "" || info.id != "" {
-						cb.Emit("tool_call_chunk", &models.ChatResp{
-							Role: string(msg.Role),
-							ToolCalls: []*models.ToolCall{
-								&models.ToolCall{
-									Id:   info.id,
-									Type: tc.Type,
-									Function: struct {
-										Name      string "json:\"name\""
-										Arguments string "json:\"arguments\""
-									}{
-										Name:      info.name,
-										Arguments: tc.Function.Arguments,
-									},
-								},
-							},
-						})
-					}
+				// 只发送包含 ID 的片段，没有ID的参数片段不具意义
+				if tc.ID != "" || info.id != "" {
+					chunkToolCalls = append(chunkToolCalls, &models.ToolCall{
+						Id:   info.id,
+						Type: tc.Type,
+						Function: struct {
+							Name      string "json:\"name\""
+							Arguments string "json:\"arguments\""
+						}{
+							Name:      info.name,
+							Arguments: tc.Function.Arguments,
+						},
+					})
 				}
 			}
 		}
 	}
-	// C. 检查结束标志并发送最终消息
+	// C. 合并分片回调
+	if cb.Emit != nil && (chunkContent != "" || len(chunkToolCalls) > 0) {
+		cb.Emit("message_chunk", &models.ChatResp{
+			AgentName: agentName,
+			Role:      string(msg.Role),
+			Content:   chunkContent,
+			ToolCalls: chunkToolCalls,
+		})
+	}
+	// D. 检查结束标志并发送最终消息
 	if msg.ResponseMeta != nil &&
 		(msg.ResponseMeta.FinishReason == "stop" || msg.ResponseMeta.FinishReason == "tool_calls") {
 		cb.flushCurrentAssistantMessage(false) // 正常结束，进行落地
 	}
-
-	// agentName := ""
-	// _ = compose.ProcessState[*models.TradingState](ctx, func(_ context.Context, state *models.TradingState) error {
-	// 	agentName = state.Goto
-	// 	return nil
-	// })
-
 	return nil
 }
 

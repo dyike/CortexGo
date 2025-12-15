@@ -15,6 +15,7 @@ package models
 // }
 
 type ChatResp struct {
+	AgentName  string      `json:"agent_name"`
 	Role       string      `json:"role"`
 	Content    string      `json:"content"`
 	ToolCalls  []*ToolCall `json:"tool_calls,omitempty"`

@@ -77,9 +77,9 @@
 `agent.stream` 会通过 `bridge.Notify` 触发事件，`topic` 统一以 `agent.` 前缀；`payload` 为 JSON 序列化的 `models.ChatResp` 或错误信息：
 
 - `agent.run_start`：启动提示，`payload.role="system"`，`content` 如 `[OnStart] <input>`。
-- `agent.message_chunk`：模型回复文本分片，字段示例：`{"agent":string,"id":string,"role":"assistant","content":string,"finish_reason":string,"message_chunks":string}`。
-- `agent.tool_calls` / `agent.tool_call_chunks`：工具调用开始事件，包含 `tool_calls`（单个工具元信息）和 `tool_call_chunks`（参数 JSON 字符串）。
+- `agent.message_chunk`：模型回复分片；`content` 为文本片段，可为空；`tool_calls` 存在时表示工具调用参数分片（与文本合并推送）。
 - `agent.tool_call_result`：工具返回消息，含 `tool_call_id` 与 `content`。
+- `agent.tool_call_request_final` / `agent.text_final`：模型一次完整回复的聚合结果，用于持久化。
 - `agent.error`：流执行出错，`payload` 为 `{"error":string}` 或 `{"role":"system","content":string}`。
 - `agent.finished`：流完成，`payload={"status":"completed"}`。
 
