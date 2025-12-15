@@ -19,6 +19,7 @@ type ChatResp struct {
 	Content    string      `json:"content"`
 	ToolCalls  []*ToolCall `json:"tool_calls,omitempty"`
 	ToolCallId string      `json:"tool_call_id,omitempty"`
+	ToolName   string      `json:"tool_name,omitempty"`
 }
 
 type ToolCall struct {

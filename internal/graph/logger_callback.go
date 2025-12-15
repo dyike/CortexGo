@@ -2,7 +2,6 @@ package graph
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -20,14 +19,6 @@ type toolCallInfo struct {
 	id               string
 	name             string
 	argumentsBuilder strings.Builder
-}
-
-// toolResultMessage mirrors the JSON structure embedded in tool result frames.
-type toolResultMessage struct {
-	Role       string `json:"role"`
-	Content    string `json:"content"`
-	ToolCallID string `json:"tool_call_id"`
-	ToolName   string `json:"tool_name"`
 }
 
 type LoggerCallback struct {
@@ -106,10 +97,15 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 
 			switch v := frame.(type) {
 			case *schema.Message:
+				// fmt.Println("====1")
 				_ = cb.pushMsg(ctx, msgID, v)
 			case *ecmodel.CallbackOutput:
+				// fmt.Println("====2")
 				_ = cb.pushMsg(ctx, msgID, v.Message)
 			case []*schema.Message:
+				// vPayload, _ := json.Marshal(v)
+				// rPayload, _ := json.Marshal(frame)
+				// fmt.Println("====3", string(vPayload), string(rPayload))
 				for _, m := range v {
 					_ = cb.pushMsg(ctx, msgID, m)
 				}
@@ -137,51 +133,15 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 	// 这种消息通常是完整的，直接发送用于持久化
 	if msg.Role == schema.Tool {
 		cb.flushCurrentAssistantMessage(true)
-
 		raw := strings.TrimSpace(msg.Content)
-		var toolMsgs []toolResultMessage
 
-		// 支持数组和单个对象两种格式
-		switch {
-		case strings.HasPrefix(raw, "["):
-			_ = json.Unmarshal([]byte(raw), &toolMsgs)
-		case raw != "":
-			var single toolResultMessage
-			if err := json.Unmarshal([]byte(raw), &single); err == nil {
-				toolMsgs = append(toolMsgs, single)
-			}
-		}
+		cb.Emit("tool_call_result", &models.ChatResp{
+			Role:       string(msg.Role),
+			Content:    raw,
+			ToolCallId: msg.ToolCallID,
+			ToolName:   msg.ToolName,
+		})
 
-		if len(toolMsgs) == 0 {
-			toolMsgs = append(toolMsgs, toolResultMessage{
-				Role:    string(msg.Role),
-				Content: msg.Content,
-			})
-		}
-
-		for _, tm := range toolMsgs {
-			content := tm.Content
-			// 工具结果的 content 通常是一个 JSON 字符串，这里尝试解码避免双重转义
-			if trimmed := strings.TrimSpace(content); trimmed != "" {
-				var rawBody json.RawMessage
-				if err := json.Unmarshal([]byte(trimmed), &rawBody); err == nil {
-					content = string(rawBody)
-				}
-			}
-
-			finalMsg := &models.ChatResp{
-				Role:       tm.Role,
-				Content:    content,
-				ToolCallId: tm.ToolCallID,
-			}
-			if finalMsg.Role == "" {
-				finalMsg.Role = string(msg.Role)
-			}
-
-			// 先推送分片（便于上层流式消费），再推送最终结果用于持久化
-			cb.Emit("tool_result_chunk", finalMsg)
-			cb.Emit("tool_result_final", finalMsg)
-		}
 		return nil
 	}
 	// --- 2. 处理 LLM 助手流 (Role: assistant) ---
@@ -271,7 +231,6 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, msgID string, msg *schema
 }
 
 func (cb *LoggerCallback) flushCurrentAssistantMessage(force bool) {
-
 	// 聚合的文本内容或工具调用请求是本次 Assistant 消息的有效载荷
 	hasContent := cb.currentContent.Len() > 0
 	hasToolCalls := len(cb.toolCalls) > 0
