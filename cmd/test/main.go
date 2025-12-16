@@ -31,7 +31,7 @@ func main() {
 	}
 
 	symbol := "CRCL.US"
-	tradeDate := "2025-12-12"
+	tradeDate := "2025-12-15"
 
 	parsedDate, err := time.Parse("2006-01-02", tradeDate)
 	if err != nil {

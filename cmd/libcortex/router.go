@@ -21,7 +21,7 @@ func Dispatch(method string, paramsJson string) string {
 		result = service.GetSystemInfo()
 	case "agent.stream":
 		result, err = service.StartAgentStream(paramsJson)
-	case "agent.history":
+	case "agent.history.list":
 		result, err = service.GetAgentHistory(paramsJson)
 	case "agent.history.info":
 		result, err = service.GetHistoryInfo(paramsJson)
