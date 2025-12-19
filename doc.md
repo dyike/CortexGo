@@ -76,11 +76,10 @@
 
 `agent.stream` 会通过 `bridge.Notify` 触发事件，`topic` 统一以 `agent.` 前缀；`payload` 为 JSON 序列化的 `models.ChatResp` 或错误信息：
 
-- `agent.run_start`：启动提示，`payload.role="system"`，`content` 如 `[OnStart] <input>`。
-- `agent.message_chunk`：模型回复分片；`content` 为文本片段，可为空；`tool_calls` 存在时表示工具调用参数分片（与文本合并推送）。
-- `agent.tool_call_result_final`：工具返回消息（最终态），含 `tool_call_id` 与 `content`。
-- `agent.text_final`：模型一次完整助手回复的聚合结果（文本与工具调用同一事件），用于持久化。
-- `agent.error`：流执行出错，`payload` 为 `{"error":string}` 或 `{"role":"system","content":string}`。
-- `agent.finished`：流完成，`payload={"status":"completed"}`。
+- `agent.message_chunk`：AI 回复的分片事件；`payload.content` 为最新文本片段，`payload.tool_calls` 可能包含工具调用参数片段。
+- `agent.tool_call_result_final`：工具执行完成后的消息（最终态），包含 `tool_call_id`、`tool_name` 及结果文本。
+- `agent.text_final`：一次完整的助手回复聚合结果（文本与工具调用合并），落盘时使用该事件。
+- `agent.error`：流执行出错；若来自模型回调则 `payload` 是 `models.ChatResp`（`role=system`），若是整体流程失败则 `payload` 形如 `{"error": "<message>"}`。
+- `agent.finished`：流程正常结束，`payload={"status":"completed"}`。
 
 回调内容均为 UTF-8 JSON 文本，上层可按需解析并展示。
