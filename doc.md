@@ -70,7 +70,7 @@
     - `session_id` (string, 必填)：`agent.history.list` 返回的 `session_id`。
   - 出参 `data`（`models.HistoryInfoResponse`）：
     - `session`: `{session_id,symbol,trade_date,prompt,status,created_at,updated_at}`
-    - `messages`: `[{id,role,agent,content,status,finish_reason,seq,created_at,updated_at}]`（按 seq 升序）。
+    - `messages`: `[{id,role,agent,content,tool_calls,tool_call_id,tool_name,status,finish_reason,seq,created_at,updated_at}]`（按 seq 升序）。
 
 ## 事件回调（`RegisterCallback`）
 

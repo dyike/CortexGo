@@ -89,7 +89,17 @@ func StartAgentStream(paramsJson string) (any, error) {
 			content      string
 			status       = storage.StatusDone
 			finishReason string
+			toolCallID   string
+			toolName     string
+			toolCalls    string
 		)
+		if len(data.ToolCalls) > 0 {
+			if encoded, err := json.Marshal(data.ToolCalls); err == nil {
+				toolCalls = string(encoded)
+			} else {
+				fmt.Printf("marshal tool calls err=%v\n", err)
+			}
+		}
 		switch event {
 		case "text_final":
 			role = "assistant"
@@ -100,6 +110,8 @@ func StartAgentStream(paramsJson string) (any, error) {
 				role = "tool"
 			}
 			content = data.Content
+			toolCallID = data.ToolCallId
+			toolName = data.ToolName
 		case "error":
 			role = "system"
 			content = data.Content
@@ -113,6 +125,9 @@ func StartAgentStream(paramsJson string) (any, error) {
 			Agent:        data.AgentName,
 			Content:      content,
 			Status:       status,
+			ToolCalls:    toolCalls,
+			ToolCallId:   toolCallID,
+			ToolName:     toolName,
 			FinishReason: finishReason,
 		}
 		if err := store.SaveMessage(ctx, msg); err != nil {

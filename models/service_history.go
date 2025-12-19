@@ -24,15 +24,18 @@ type HistoryInfoParams struct {
 
 // HistoryMessage 表示某个会话中的单条消息
 type HistoryMessage struct {
-	ID           string `json:"id"`
-	Role         string `json:"role"`
-	Agent        string `json:"agent"`
-	Content      string `json:"content"`
-	Status       string `json:"status"`
-	FinishReason string `json:"finish_reason"`
-	Seq          int    `json:"seq"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	ID           string      `json:"id"`
+	Role         string      `json:"role"`
+	Agent        string      `json:"agent"`
+	Content      string      `json:"content"`
+	ToolCallId   string      `json:"tool_call_id,omitempty"`
+	ToolName     string      `json:"tool_name,omitempty"`
+	ToolCalls    []*ToolCall `json:"tool_calls,omitempty"`
+	Status       string      `json:"status"`
+	FinishReason string      `json:"finish_reason"`
+	Seq          int         `json:"seq"`
+	CreatedAt    string      `json:"created_at"`
+	UpdatedAt    string      `json:"updated_at"`
 }
 
 // HistoryListResponse 历史会话列表返回

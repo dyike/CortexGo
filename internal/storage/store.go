@@ -69,6 +69,9 @@ func (s *Store) InitTable() error {
 	  role TEXT NOT NULL,
 	  agent TEXT DEFAULT '',
 	  content TEXT,
+	  tool_calls TEXT DEFAULT '',
+	  tool_call_id TEXT DEFAULT '',
+	  tool_name TEXT DEFAULT '',
 	  status TEXT,
 	  finish_reason TEXT,
 	  seq INTEGER,
@@ -190,12 +193,12 @@ func (s *Store) SaveMessage(ctx context.Context, msg *models.MessageRecord) erro
 	for i := 0; i < maxRetry; i++ {
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO messages
-				(session_id, role, agent, content, status, finish_reason, seq, updated_at)
+				(session_id, role, agent, content, tool_calls, tool_call_id, tool_name, status, finish_reason, seq, updated_at)
 			SELECT
-				?, ?, ?, ?, ?, ?, COALESCE(MAX(seq), 0) + 1, CURRENT_TIMESTAMP
+				?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(seq), 0) + 1, CURRENT_TIMESTAMP
 			FROM messages
 			WHERE session_id = ?
-		`, msg.SessionId, msg.Role, msg.Agent, msg.Content, status, msg.FinishReason, msg.SessionId)
+		`, msg.SessionId, msg.Role, msg.Agent, msg.Content, msg.ToolCalls, msg.ToolCallId, msg.ToolName, status, msg.FinishReason, msg.SessionId)
 
 		if err == nil {
 			return nil
@@ -269,8 +272,6 @@ func (s *Store) GetSession(ctx context.Context, sessionID int64) (*models.Sessio
 	return &rec, nil
 }
 
-// ListMessages 按 seq 升序返回指定会话的消息。
-// 注意：models.MessageRecord.SessionId 是 string，因此这里把 session_id CAST 成 TEXT 以避免 Scan 报错。
 func (s *Store) ListMessages(ctx context.Context, sessionID int64) ([]models.MessageRecord, error) {
 	if sessionID <= 0 {
 		return nil, fmt.Errorf("invalid session id: %d", sessionID)
@@ -279,10 +280,13 @@ func (s *Store) ListMessages(ctx context.Context, sessionID int64) ([]models.Mes
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT
 			id,
-			CAST(session_id AS TEXT),
+			session_id,
 			role,
 			agent,
 			content,
+			tool_calls,
+			tool_call_id,
+			tool_name,
 			status,
 			finish_reason,
 			seq,
@@ -306,6 +310,9 @@ func (s *Store) ListMessages(ctx context.Context, sessionID int64) ([]models.Mes
 			&rec.Role,
 			&rec.Agent,
 			&rec.Content,
+			&rec.ToolCalls,
+			&rec.ToolCallId,
+			&rec.ToolName,
 			&rec.Status,
 			&rec.FinishReason,
 			&rec.Seq,
@@ -327,4 +334,12 @@ func isUniqueConstraintErr(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "UNIQUE constraint failed") ||
 		strings.Contains(msg, "constraint failed")
+}
+
+func isDuplicateColumnErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "duplicate column name")
 }

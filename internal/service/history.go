@@ -117,6 +117,9 @@ func GetHistoryInfo(paramsJson string) (any, error) {
 			Role:         m.Role,
 			Agent:        m.Agent,
 			Content:      m.Content,
+			ToolCallId:   m.ToolCallId,
+			ToolName:     m.ToolName,
+			ToolCalls:    parseToolCalls(m.ToolCalls),
 			Status:       m.Status,
 			FinishReason: m.FinishReason,
 			Seq:          m.Seq,
@@ -144,4 +147,16 @@ func formatTime(t time.Time) string {
 		return ""
 	}
 	return t.UTC().Format(time.RFC3339)
+}
+
+func parseToolCalls(raw string) []*models.ToolCall {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var calls []*models.ToolCall
+	if err := json.Unmarshal([]byte(raw), &calls); err != nil {
+		fmt.Printf("parse tool_calls err=%v\n", err)
+		return nil
+	}
+	return calls
 }

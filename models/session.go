@@ -20,6 +20,9 @@ type MessageRecord struct {
 	Content      string
 	Status       string
 	FinishReason string
+	ToolCallId   string
+	ToolName     string
+	ToolCalls    string
 	Seq          int
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
