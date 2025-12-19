@@ -55,19 +55,19 @@
   - 出参 `data`：`{"status":"started"}`。实际编排在后台 goroutine 运行，后续进度通过回调事件推送（见下节）。
   - 结束事件：成功时触发 `agent.finished`，异常时 `agent.error`。
 
-- `agent.history`
+- `agent.history.list`
   - 入参 JSON（`models.HistoryParams`），可为空：
-    - `cursor` (string, 可选)：sqlite rowid 书签（为空表示第一页）。
+    - `cursor` (string, 可选)：上一页返回的 `session_id` 书签（为空表示第一页）。
     - `limit` (int, 可选)：每页数量，默认 50，最大 200。
   - 前置要求：`data_dir` 已配置；使用 `data_dir/agent.db` 中的会话记录。
   - 出参 `data`（`models.HistoryListResponse`）：
     - `items`: `[{session_id,symbol,trade_date,prompt,status,created_at,updated_at}]`
-    - `next_cursor`: string，下一页 rowid 书签；无则为空。
+    - `next_cursor`: string，下一页游标（同 `session_id` 书签）；无则为空。
     - `has_more`: bool。
 
 - `agent.history.info`
   - 入参 JSON（`models.HistoryInfoParams`）：
-    - `session_id` (string, 必填)。
+    - `session_id` (string, 必填)：`agent.history.list` 返回的 `session_id`。
   - 出参 `data`（`models.HistoryInfoResponse`）：
     - `session`: `{session_id,symbol,trade_date,prompt,status,created_at,updated_at}`
     - `messages`: `[{id,role,agent,content,status,finish_reason,seq,created_at,updated_at}]`（按 seq 升序）。

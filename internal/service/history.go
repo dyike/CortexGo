@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dyike/CortexGo/internal/storage"
 	"github.com/dyike/CortexGo/models"
@@ -52,19 +53,19 @@ func GetAgentHistory(paramsJson string) (any, error) {
 	items := make([]models.HistorySession, 0, len(sessions))
 	for _, s := range sessions {
 		items = append(items, models.HistorySession{
-			SessionID: s.ID,
+			SessionID: strconv.FormatInt(s.Id, 10),
 			Symbol:    s.Symbol,
 			TradeDate: s.TradeDate,
 			Prompt:    s.Prompt,
 			Status:    s.Status,
-			CreatedAt: s.CreatedAt,
-			UpdatedAt: s.UpdatedAt,
+			CreatedAt: formatTime(s.CreatedAt),
+			UpdatedAt: formatTime(s.UpdatedAt),
 		})
 	}
 
 	nextCursor := ""
 	if len(sessions) == limit && len(sessions) > 0 {
-		nextCursor = strconv.FormatInt(sessions[len(sessions)-1].RowID, 10)
+		nextCursor = strconv.FormatInt(sessions[len(sessions)-1].Id, 10)
 	}
 
 	return models.HistoryListResponse{
@@ -85,6 +86,10 @@ func GetHistoryInfo(paramsJson string) (any, error) {
 	if sessionID == "" {
 		return nil, errors.New("session_id is required")
 	}
+	sessionInt, err := strconv.ParseInt(sessionID, 10, 64)
+	if err != nil || sessionInt <= 0 {
+		return nil, fmt.Errorf("invalid session_id")
+	}
 
 	store, err := storage.GetSQLiteStore()
 	if err != nil {
@@ -92,7 +97,7 @@ func GetHistoryInfo(paramsJson string) (any, error) {
 	}
 
 	ctx := context.Background()
-	sessionRec, err := store.GetSession(ctx, sessionID)
+	sessionRec, err := store.GetSession(ctx, sessionInt)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +105,7 @@ func GetHistoryInfo(paramsJson string) (any, error) {
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
 
-	msgRecs, err := store.ListMessages(ctx, sessionID)
+	msgRecs, err := store.ListMessages(ctx, sessionInt)
 	if err != nil {
 		return nil, err
 	}
@@ -108,28 +113,35 @@ func GetHistoryInfo(paramsJson string) (any, error) {
 	messages := make([]models.HistoryMessage, 0, len(msgRecs))
 	for _, m := range msgRecs {
 		messages = append(messages, models.HistoryMessage{
-			ID:           m.ID,
+			ID:           strconv.FormatInt(m.Id, 10),
 			Role:         m.Role,
 			Agent:        m.Agent,
 			Content:      m.Content,
 			Status:       m.Status,
 			FinishReason: m.FinishReason,
 			Seq:          m.Seq,
-			CreatedAt:    m.CreatedAt,
-			UpdatedAt:    m.UpdatedAt,
+			CreatedAt:    formatTime(m.CreatedAt),
+			UpdatedAt:    formatTime(m.UpdatedAt),
 		})
 	}
 
 	return models.HistoryInfoResponse{
 		Session: models.HistorySession{
-			SessionID: sessionRec.ID,
+			SessionID: strconv.FormatInt(sessionRec.Id, 10),
 			Symbol:    sessionRec.Symbol,
 			TradeDate: sessionRec.TradeDate,
 			Prompt:    sessionRec.Prompt,
 			Status:    sessionRec.Status,
-			CreatedAt: sessionRec.CreatedAt,
-			UpdatedAt: sessionRec.UpdatedAt,
+			CreatedAt: formatTime(sessionRec.CreatedAt),
+			UpdatedAt: formatTime(sessionRec.UpdatedAt),
 		},
 		Messages: messages,
 	}, nil
+}
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
 }

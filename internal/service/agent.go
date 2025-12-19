@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/dyike/CortexGo/internal/storage"
 	"github.com/dyike/CortexGo/models"
 	"github.com/dyike/CortexGo/pkg/bridge"
-	"github.com/dyike/CortexGo/pkg/utils"
 )
 
 // StartAgentStream 启动交易编排流，并通过回调推送流式事件
@@ -51,33 +51,80 @@ func StartAgentStream(paramsJson string) (any, error) {
 		return nil, fmt.Errorf("init chat model: %w", err)
 	}
 
-	sessionID := utils.RandStr(16)
 	store, err := storage.GetSQLiteStore()
 	if err != nil {
 		return nil, fmt.Errorf("init sqlite: %w", err)
 	}
-	recorder, err := storage.NewStreamRecorder(ctx, store, models.SessionRecord{
-		ID:        sessionID,
+	sessionRec := &models.SessionRecord{
 		Symbol:    params.Symbol,
 		TradeDate: params.TradeDate,
 		Prompt:    params.Prompt,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("init stream recorder: %w", err)
+		Status:    storage.StatusInit,
 	}
-	recorder.RecordUserPrompt(params.Prompt)
+	if _, err := store.CreateSession(ctx, sessionRec); err != nil {
+		return nil, fmt.Errorf("create session: %w", err)
+	}
+	if err := store.SaveMessage(ctx, &models.MessageRecord{
+		SessionId: sessionRec.Id,
+		Role:      "user",
+		Content:   params.Prompt,
+		Status:    storage.StatusDone,
+	}); err != nil {
+		return nil, fmt.Errorf("record user prompt: %w", err)
+	}
 
 	genFunc := func(ctx context.Context) *models.TradingState {
 		return models.NewTradingState(params.Symbol, parsedDate, params.Prompt, &cfg)
 	}
 
 	orchestrator := graph.NewTradingOrchestrator[string, string, *models.TradingState](ctx, genFunc, &cfg)
+	sessionID := sessionRec.Id
+	sessionIDStr := strconv.FormatInt(sessionID, 10)
+	persistStreamEvent := func(event string, data *models.ChatResp) {
+		if data == nil {
+			return
+		}
+		var (
+			role         string
+			content      string
+			status       = storage.StatusDone
+			finishReason string
+		)
+		switch event {
+		case "text_final":
+			role = "assistant"
+			content = data.Content
+		case "tool_call_result_final":
+			role = data.Role
+			if strings.TrimSpace(role) == "" {
+				role = "tool"
+			}
+			content = data.Content
+		case "error":
+			role = "system"
+			content = data.Content
+			status = storage.StatusError
+		default:
+			return
+		}
+		msg := &models.MessageRecord{
+			SessionId:    sessionID,
+			Role:         role,
+			Agent:        data.AgentName,
+			Content:      content,
+			Status:       status,
+			FinishReason: finishReason,
+		}
+		if err := store.SaveMessage(ctx, msg); err != nil {
+			fmt.Printf("persist stream message event=%s err=%v\n", event, err)
+		}
+	}
 
 	go func() {
 		_, streamErr := orchestrator.Stream(ctx, params.Prompt,
 			compose.WithCallbacks(&graph.LoggerCallback{
 				Emit: func(event string, data *models.ChatResp) {
-					recorder.HandleStreamEvent(event, data)
+					persistStreamEvent(event, data)
 					if data == nil {
 						return
 					}
@@ -86,7 +133,21 @@ func StartAgentStream(paramsJson string) (any, error) {
 				},
 			}),
 		)
-		recorder.Finish(streamErr)
+		status := storage.StatusDone
+		if streamErr != nil {
+			status = storage.StatusError
+			if err := store.SaveMessage(ctx, &models.MessageRecord{
+				SessionId: sessionID,
+				Role:      "system",
+				Content:   streamErr.Error(),
+				Status:    storage.StatusError,
+			}); err != nil {
+				fmt.Printf("record stream error message err=%v\n", err)
+			}
+		}
+		if err := store.UpdateSessionStatus(ctx, sessionID, status); err != nil {
+			fmt.Printf("update session status err=%v\n", err)
+		}
 
 		if streamErr != nil {
 			errPayload, _ := json.Marshal(map[string]string{"error": streamErr.Error()})
@@ -97,5 +158,5 @@ func StartAgentStream(paramsJson string) (any, error) {
 		bridge.Notify("agent.finished", `{"status":"completed"}`)
 	}()
 
-	return map[string]string{"status": "started", "session_id": sessionID}, nil
+	return map[string]string{"status": "started", "session_id": sessionIDStr}, nil
 }
