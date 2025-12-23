@@ -37,7 +37,7 @@ Trader -> Risky Analyst -> Safe Analyst -> Neutral Analyst (max 3 rounds) -> Ris
 
 ### C/Swift/Java 接口
 导出函数：`InitSDK`、`RegisterCallback`、`UpdateConfig`、`GetConfig`、`Call`、`FreeString`。  
-RPC 方法：`system.info`、`agent.stream`、`agent.history.list`、`agent.history.info`。  
+RPC 方法：`system.info`、`agent.stream`、`agent.history.list`、`agent.history.info`、`agent.history.del`。  
 完整参数与事件说明见 `doc.md`。
 
 ## 配置

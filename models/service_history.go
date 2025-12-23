@@ -22,6 +22,11 @@ type HistoryInfoParams struct {
 	SessionID string `json:"session_id"` // 必填
 }
 
+// HistoryDeleteParams 描述按 session_id 删除历史会话的参数
+type HistoryDeleteParams struct {
+	SessionID string `json:"session_id"` // 必填
+}
+
 // HistoryMessage 表示某个会话中的单条消息
 type HistoryMessage struct {
 	ID           string      `json:"id"`
@@ -49,4 +54,10 @@ type HistoryListResponse struct {
 type HistoryInfoResponse struct {
 	Session  HistorySession   `json:"session"`
 	Messages []HistoryMessage `json:"messages"`
+}
+
+// HistoryDeleteResponse 删除会话的结果
+type HistoryDeleteResponse struct {
+	SessionID string `json:"session_id"`
+	Deleted   bool   `json:"deleted"`
 }

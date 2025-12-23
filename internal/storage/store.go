@@ -326,6 +326,49 @@ func (s *Store) ListMessages(ctx context.Context, sessionID int64) ([]models.Mes
 	return items, nil
 }
 
+// DeleteSession 删除会话及其消息（依赖外键 ON DELETE CASCADE）。
+func (s *Store) DeleteSession(ctx context.Context, sessionID int64) error {
+	if sessionID <= 0 {
+		return fmt.Errorf("invalid session id: %d", sessionID)
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("delete session: %w", err)
+	}
+
+	res, err := tx.ExecContext(ctx, `
+		DELETE FROM messages
+		WHERE session_id = ?
+	`, sessionID)
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("delete session messages: %w", err)
+	}
+	_, _ = res.RowsAffected()
+
+	res, err = tx.ExecContext(ctx, `
+		DELETE FROM sessions
+		WHERE id = ?
+	`, sessionID)
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("delete session: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("delete session: %w", err)
+	}
+	if rows == 0 {
+		_ = tx.Rollback()
+		return sql.ErrNoRows
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("delete session: %w", err)
+	}
+	return nil
+}
+
 func isUniqueConstraintErr(err error) bool {
 	if err == nil {
 		return false

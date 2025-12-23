@@ -72,6 +72,13 @@
     - `session`: `{session_id,symbol,trade_date,prompt,status,created_at,updated_at}`
     - `messages`: `[{id,role,agent,content,tool_calls,tool_call_id,tool_name,status,finish_reason,seq,created_at,updated_at}]`（按 seq 升序）。
 
+- `agent.history.del`
+  - 入参 JSON（`models.HistoryDeleteParams`）：
+    - `session_id` (string, 必填)：需要删除的会话 ID。
+  - 出参 `data`（`models.HistoryDeleteResponse`）：
+    - `session_id`: string
+    - `deleted`: bool
+
 ## 事件回调（`RegisterCallback`）
 
 `agent.stream` 会通过 `bridge.Notify` 触发事件，`topic` 统一以 `agent.` 前缀；`payload` 为 JSON 序列化的 `models.ChatResp` 或错误信息：

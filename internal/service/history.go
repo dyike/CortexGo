@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -139,6 +140,41 @@ func GetHistoryInfo(paramsJson string) (any, error) {
 			UpdatedAt: formatTime(sessionRec.UpdatedAt),
 		},
 		Messages: messages,
+	}, nil
+}
+
+// DeleteHistory 根据 session_id 删除会话及其消息
+func DeleteHistory(paramsJson string) (any, error) {
+	var params models.HistoryDeleteParams
+	if err := json.Unmarshal([]byte(paramsJson), &params); err != nil {
+		return nil, fmt.Errorf("invalid params: %w", err)
+	}
+
+	sessionID := strings.TrimSpace(params.SessionID)
+	if sessionID == "" {
+		return nil, errors.New("session_id is required")
+	}
+	sessionInt, err := strconv.ParseInt(sessionID, 10, 64)
+	if err != nil || sessionInt <= 0 {
+		return nil, fmt.Errorf("invalid session_id")
+	}
+
+	store, err := storage.GetSQLiteStore()
+	if err != nil {
+		return nil, fmt.Errorf("open sqlite: %w", err)
+	}
+
+	ctx := context.Background()
+	if err := store.DeleteSession(ctx, sessionInt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("session not found: %s", sessionID)
+		}
+		return nil, err
+	}
+
+	return models.HistoryDeleteResponse{
+		SessionID: sessionID,
+		Deleted:   true,
 	}, nil
 }
 

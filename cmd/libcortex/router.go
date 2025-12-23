@@ -25,6 +25,8 @@ func Dispatch(method string, paramsJson string) string {
 		result, err = service.GetAgentHistory(paramsJson)
 	case "agent.history.info":
 		result, err = service.GetHistoryInfo(paramsJson)
+	case "agent.history.del":
+		result, err = service.DeleteHistory(paramsJson)
 	default:
 		return jsonResp(404, "Method not found", nil)
 	}
