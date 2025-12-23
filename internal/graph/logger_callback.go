@@ -92,12 +92,12 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 		for {
 			frame, err := output.Recv()
 			if errors.Is(err, io.EOF) {
-				cb.flushCurrentAssistantMessage(true)
+				cb.flushCurrentAssistantMessage(agentName, true)
 				break
 			}
 			if err != nil {
 				fmt.Println("=========[OnEndStream]recv_error=========", err)
-				cb.flushCurrentAssistantMessage(true)
+				cb.flushCurrentAssistantMessage(agentName, true)
 				return
 			}
 
@@ -139,7 +139,7 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, agentName, msgID string, 
 	// --- 1. 处理工具执行结果 (Role: tool) ---
 	// 这种消息通常是完整的，直接发送用于持久化
 	if msg.Role == schema.Tool {
-		cb.flushCurrentAssistantMessage(true)
+		cb.flushCurrentAssistantMessage(agentName, true)
 		raw := strings.TrimSpace(msg.Content)
 
 		cb.Emit("tool_call_result_final", &models.ChatResp{
@@ -224,12 +224,12 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, agentName, msgID string, 
 	// D. 检查结束标志并发送最终消息
 	if msg.ResponseMeta != nil &&
 		(msg.ResponseMeta.FinishReason == "stop" || msg.ResponseMeta.FinishReason == "tool_calls") {
-		cb.flushCurrentAssistantMessage(false) // 正常结束，进行落地
+		cb.flushCurrentAssistantMessage(agentName, false) // 正常结束，进行落地
 	}
 	return nil
 }
 
-func (cb *LoggerCallback) flushCurrentAssistantMessage(force bool) {
+func (cb *LoggerCallback) flushCurrentAssistantMessage(agentName string, force bool) {
 	// 聚合的文本内容或工具调用请求是本次 Assistant 消息的有效载荷
 	hasContent := cb.currentContent.Len() > 0
 	hasToolCalls := len(cb.toolCalls) > 0
@@ -260,6 +260,7 @@ func (cb *LoggerCallback) flushCurrentAssistantMessage(force bool) {
 
 	// 2. 构建最终消息
 	finalMsg := &models.ChatResp{
+		AgentName: agentName,
 		Role:      "assistant",
 		Content:   cb.currentContent.String(),
 		ToolCalls: finalToolCalls,
