@@ -2,8 +2,11 @@ package models
 
 // HistoryParams 描述查询历史列表的参数（书签分页，基于 sqlite rowid 游标）
 type HistoryParams struct {
-	Cursor string `json:"cursor"` // rowid 形式的书签，空表示第一页
-	Limit  int    `json:"limit"`  // 每页数量，默认 50，最大 200
+	Cursor    string `json:"cursor"`     // rowid 形式的书签，空表示第一页
+	Limit     int    `json:"limit"`      // 每页数量，默认 50，最大 200
+	Symbol    string `json:"symbol"`     // 可选，按标的过滤
+	TradeDate string `json:"trade_date"` // 可选，按交易日期过滤（YYYY-MM-DD）
+	Query     string `json:"query"`      // 可选，单一搜索词，匹配 symbol 或 trade_date
 }
 
 // HistorySession 表示一次会话的概要信息

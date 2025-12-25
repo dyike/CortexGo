@@ -96,22 +96,19 @@ func (cb *LoggerCallback) OnEndWithStreamOutput(ctx context.Context, info *callb
 				break
 			}
 			if err != nil {
-				fmt.Println("=========[OnEndStream]recv_error=========", err)
 				cb.flushCurrentAssistantMessage(agentName, true)
 				return
 			}
 
 			switch v := frame.(type) {
 			case *schema.Message:
-				// fmt.Println("info3=", info)
-				// _ = cb.pushMsg(ctx, agentName, msgID, v)
+
 			case *ecmodel.CallbackOutput:
 				_ = cb.pushMsg(ctx, agentName, msgID, v.Message)
-				// fmt.Println("info1=", info, "msg=", v.Message)
+
 			case []*schema.Message:
 				for _, m := range v {
 					_ = cb.pushMsg(ctx, agentName, msgID, m)
-					// fmt.Println("info2", info, "msg=", m)
 				}
 			default:
 			}
@@ -225,6 +222,14 @@ func (cb *LoggerCallback) pushMsg(ctx context.Context, agentName, msgID string, 
 	if msg.ResponseMeta != nil &&
 		(msg.ResponseMeta.FinishReason == "stop" || msg.ResponseMeta.FinishReason == "tool_calls") {
 		cb.flushCurrentAssistantMessage(agentName, false) // 正常结束，进行落地
+		eventType := "messgae_chunk_stop"
+		if msg.ResponseMeta.FinishReason == "tool_calls" {
+			eventType = "tool_call_stop"
+		}
+		cb.Emit(eventType, &models.ChatResp{
+			AgentName: agentName,
+			Role:      string(msg.Role),
+		})
 	}
 	return nil
 }

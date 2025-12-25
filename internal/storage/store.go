@@ -216,24 +216,47 @@ func (s *Store) SaveMessage(ctx context.Context, msg *models.MessageRecord) erro
 }
 
 // ListSessions 使用 id 游标倒序分页列出会话。
-func (s *Store) ListSessions(ctx context.Context, cursor int64, limit int) ([]models.SessionRecord, error) {
+func (s *Store) ListSessions(ctx context.Context, cursor int64, limit int, symbol string, tradeDate string, query string) ([]models.SessionRecord, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 
-	args := make([]any, 0, 2)
-	query := `
+	args := make([]any, 0, 4)
+	conds := make([]string, 0, 3)
+	orConds := make([]string, 0, 2)
+	queryStr := `
 		SELECT id, symbol, trade_date, prompt, status, created_at, updated_at
 		FROM sessions
 	`
 	if cursor > 0 {
-		query += "WHERE id < ? "
+		conds = append(conds, "id < ?")
 		args = append(args, cursor)
 	}
-	query += "ORDER BY id DESC LIMIT ?"
+	if query != "" {
+		orConds = append(orConds, "symbol LIKE ?")
+		args = append(args, likePattern(query))
+		orConds = append(orConds, "trade_date LIKE ?")
+		args = append(args, likePattern(query))
+	} else {
+		if symbol != "" {
+			orConds = append(orConds, "symbol LIKE ?")
+			args = append(args, likePattern(symbol))
+		}
+		if tradeDate != "" {
+			orConds = append(orConds, "trade_date LIKE ?")
+			args = append(args, likePattern(tradeDate))
+		}
+	}
+	if len(orConds) > 0 {
+		conds = append(conds, "("+strings.Join(orConds, " OR ")+")")
+	}
+	if len(conds) > 0 {
+		queryStr += "WHERE " + strings.Join(conds, " AND ") + " "
+	}
+	queryStr += "ORDER BY id DESC LIMIT ?"
 	args = append(args, limit)
 
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := s.db.QueryContext(ctx, queryStr, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list sessions: %w", err)
 	}
@@ -248,6 +271,13 @@ func (s *Store) ListSessions(ctx context.Context, cursor int64, limit int) ([]mo
 		items = append(items, rec)
 	}
 	return items, nil
+}
+
+func likePattern(input string) string {
+	if strings.ContainsAny(input, "%_") {
+		return input
+	}
+	return "%" + input + "%"
 }
 
 // GetSession 读取单个会话详情。

@@ -59,6 +59,10 @@
   - 入参 JSON（`models.HistoryParams`），可为空：
     - `cursor` (string, 可选)：上一页返回的 `session_id` 书签（为空表示第一页）。
     - `limit` (int, 可选)：每页数量，默认 50，最大 200。
+    - `query` (string, 可选)：单一搜索词，匹配 `symbol` 或 `trade_date`（默认模糊匹配，`LIKE`）。
+    - `symbol` (string, 可选)：按交易标的过滤（默认模糊匹配，`LIKE`）。
+    - `trade_date` (string, 可选)：按交易日期过滤（默认模糊匹配，`LIKE`）。
+    - 规则：优先使用 `query`；若未提供 `query` 且同时提供 `symbol` 与 `trade_date`，则使用 `OR` 组合；都会应用模糊匹配。
   - 前置要求：`data_dir` 已配置；使用 `data_dir/agent.db` 中的会话记录。
   - 出参 `data`（`models.HistoryListResponse`）：
     - `items`: `[{session_id,symbol,trade_date,prompt,status,created_at,updated_at}]`

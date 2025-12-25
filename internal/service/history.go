@@ -46,7 +46,15 @@ func GetAgentHistory(paramsJson string) (any, error) {
 	}
 
 	ctx := context.Background()
-	sessions, err := store.ListSessions(ctx, cursor, limit)
+	query := strings.TrimSpace(params.Query)
+	symbol := strings.TrimSpace(params.Symbol)
+	tradeDate := strings.TrimSpace(params.TradeDate)
+	if query != "" {
+		symbol = ""
+		tradeDate = ""
+	}
+
+	sessions, err := store.ListSessions(ctx, cursor, limit, symbol, tradeDate, query)
 	if err != nil {
 		return nil, err
 	}
