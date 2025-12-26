@@ -58,8 +58,8 @@ func (s *Store) InitTable() error {
 	  trade_date TEXT,
 	  prompt TEXT,
 	  status TEXT,
-	  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	  created_at DATETIME DEFAULT (datetime('now', 'localtime')),
+	  updated_at DATETIME DEFAULT (datetime('now', 'localtime'))
 	);`
 
 	messageDDL := `
@@ -75,8 +75,8 @@ func (s *Store) InitTable() error {
 	  status TEXT,
 	  finish_reason TEXT,
 	  seq INTEGER,
-	  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	  created_at DATETIME DEFAULT (datetime('now', 'localtime')),
+	  updated_at DATETIME DEFAULT (datetime('now', 'localtime')),
 	  FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE,
 	  UNIQUE(session_id, seq)
 	);`
@@ -108,7 +108,7 @@ func (s *Store) CreateSession(ctx context.Context, rec *models.SessionRecord) (i
 
 	res, err := s.db.ExecContext(ctx, `
 		INSERT INTO sessions (symbol, trade_date, prompt, status, updated_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+		VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
 	`, rec.Symbol, rec.TradeDate, rec.Prompt, rec.Status)
 	if err != nil {
 		return 0, fmt.Errorf("insert session: %w", err)
@@ -140,13 +140,13 @@ func (s *Store) UpsertSession(ctx context.Context, rec *models.SessionRecord) er
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO sessions (id, symbol, trade_date, prompt, status, updated_at)
-		VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+		VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
 		ON CONFLICT(id) DO UPDATE SET
 			symbol = excluded.symbol,
 			trade_date = excluded.trade_date,
 			prompt = excluded.prompt,
 			status = excluded.status,
-			updated_at = CURRENT_TIMESTAMP
+			updated_at = datetime('now', 'localtime')
 	`, rec.Id, rec.Symbol, rec.TradeDate, rec.Prompt, rec.Status)
 	if err != nil {
 		return fmt.Errorf("upsert session: %w", err)
@@ -164,7 +164,7 @@ func (s *Store) UpdateSessionStatus(ctx context.Context, sessionID int64, status
 	}
 	_, err := s.db.ExecContext(ctx, `
 		UPDATE sessions
-		SET status = ?, updated_at = CURRENT_TIMESTAMP
+		SET status = ?, updated_at = datetime('now', 'localtime')
 		WHERE id = ?
 	`, status, sessionID)
 	if err != nil {
@@ -195,7 +195,7 @@ func (s *Store) SaveMessage(ctx context.Context, msg *models.MessageRecord) erro
 			INSERT INTO messages
 				(session_id, role, agent, content, tool_calls, tool_call_id, tool_name, status, finish_reason, seq, updated_at)
 			SELECT
-				?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(seq), 0) + 1, CURRENT_TIMESTAMP
+				?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(MAX(seq), 0) + 1, datetime('now', 'localtime')
 			FROM messages
 			WHERE session_id = ?
 		`, msg.SessionId, msg.Role, msg.Agent, msg.Content, msg.ToolCalls, msg.ToolCallId, msg.ToolName, status, msg.FinishReason, msg.SessionId)

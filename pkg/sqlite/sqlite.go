@@ -19,7 +19,9 @@ func Open(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("create db dir: %w", err)
 	}
 
-	db, err := sql.Open("sqlite3", dbPath)
+	// 添加 _loc=Local 使时间戳使用本地时区
+	dsn := dbPath + "?_loc=Local"
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
