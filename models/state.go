@@ -50,26 +50,19 @@ type TradingState struct {
 	FinalTradeDecision   string           `json:"final_trade_decision"`
 	Decision             *TradingDecision `json:"decision"`
 	Goto                 string           `json:"goto"`
-	MaxIterations        int              `json:"max_iterations"`
-	CurrentIteration     int              `json:"current_iteration"`
-	Config               *config.Config   `json:"config"` // Configuration for dynamic behavior
+	Config               *config.Config   `json:"config"`
 
-	// Enhanced fields to match Python version
-	Phase                 string `json:"phase"`                   // Current workflow phase: analysis, debate, trading, risk
-	WorkflowComplete      bool   `json:"workflow_complete"`       // Whether the workflow has finished
-	AnalysisPhaseComplete bool   `json:"analysis_phase_complete"` // Whether all 4 analysts have completed
-	DebatePhaseComplete   bool   `json:"debate_phase_complete"`   // Whether debate phase is complete
-	TradingPhaseComplete  bool   `json:"trading_phase_complete"`  // Whether trading phase is complete
-	RiskPhaseComplete     bool   `json:"risk_phase_complete"`     // Whether risk phase is complete
+	// Workflow phase tracking
+	Phase                       string `json:"phase"`
+	WorkflowComplete            bool   `json:"workflow_complete"`
+	AnalysisPhaseComplete       bool   `json:"analysis_phase_complete"`
+	DebatePhaseComplete         bool   `json:"debate_phase_complete"`
+	TradingPhaseComplete        bool   `json:"trading_phase_complete"`
+	RiskPhaseComplete           bool   `json:"risk_phase_complete"`
+	FundamentalsAnalystComplete bool   `json:"fundamentals_analyst_complete"`
 
-	// Agent completion tracking
-	SocialAnalystComplete       bool `json:"social_analyst_complete"`
-	NewsAnalystComplete         bool `json:"news_analyst_complete"`
-	FundamentalsAnalystComplete bool `json:"fundamentals_analyst_complete"`
-
-	// Memory and reflection data
-	PreviousDecisions []TradingDecision `json:"previous_decisions"` // Historical decisions for learning
-	ReflectionNotes   string            `json:"reflection_notes"`   // Reflections on past performance
+	// Historical decisions for learning
+	PreviousDecisions []TradingDecision `json:"previous_decisions"`
 }
 
 func NewTradingState(symbol string, date time.Time, userPrompt string, cfg *config.Config) *TradingState {
@@ -101,22 +94,16 @@ func NewTradingState(symbol string, date time.Time, userPrompt string, cfg *conf
 		FundamentalsReport: "",
 		NewsReport:         "",
 		SocialReport:       "",
-		MaxIterations:      20,
-		CurrentIteration:   0,
 		Goto:               "market_analyst",
-		Config:             cfg, // Store configuration for dynamic behavior
+		Config:             cfg,
 
-		// Initialize enhanced fields
 		Phase:                       "analysis",
 		WorkflowComplete:            false,
 		AnalysisPhaseComplete:       false,
 		DebatePhaseComplete:         false,
 		TradingPhaseComplete:        false,
 		RiskPhaseComplete:           false,
-		SocialAnalystComplete:       false,
-		NewsAnalystComplete:         false,
 		FundamentalsAnalystComplete: false,
 		PreviousDecisions:           []TradingDecision{},
-		ReflectionNotes:             "",
 	}
 }

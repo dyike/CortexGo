@@ -60,7 +60,6 @@ func NewManager(opts ...ManagerOption) (*Manager, error) {
 	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create config dir: %w", err)
 	}
-	ConfigDir = configDir
 
 	cfg, err := loadOrCreateConfig(configPath, options)
 	if err != nil {
@@ -347,7 +346,4 @@ func SetDefaultManager(mgr *Manager) {
 	managerMu.Lock()
 	defer managerMu.Unlock()
 	defaultManager = mgr
-	if mgr != nil {
-		ConfigDir = filepath.Dir(mgr.Path())
-	}
 }

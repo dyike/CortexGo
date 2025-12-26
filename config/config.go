@@ -30,8 +30,6 @@ type Config struct {
 	DeepSeekAPIKey string `json:"deepseek_api_key"`
 }
 
-var ConfigDir string
-
 func Initialize(path string) error {
 	opts := []ManagerOption{}
 	if strings.TrimSpace(path) != "" {

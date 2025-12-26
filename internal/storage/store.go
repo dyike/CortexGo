@@ -409,10 +409,3 @@ func isUniqueConstraintErr(err error) bool {
 		strings.Contains(msg, "constraint failed")
 }
 
-func isDuplicateColumnErr(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "duplicate column name")
-}

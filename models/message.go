@@ -1,19 +1,6 @@
 package models
 
-// type ToolResp struct {
-// 	ID   string         `json:"id,omitempty" form:"id,omitempty"`
-// 	Type string         `json:"type,omitempty" form:"type,omitempty"`
-// 	Name string         `json:"name,omitempty" form:"name,omitempty"`
-// 	Args map[string]any `json:"args,omitempty" form:"args,omitempty"`
-// }
-
-// type ToolChunkResp struct {
-// 	ID   string `json:"id,omitempty" form:"id,omitempty"`
-// 	Type string `json:"type,omitempty" form:"type,omitempty"`
-// 	Name string `json:"name,omitempty" form:"name,omitempty"`
-// 	Args string `json:"args,omitempty" form:"args,omitempty"`
-// }
-
+// ChatResp represents a chat response from an agent
 type ChatResp struct {
 	AgentName  string      `json:"agent_name"`
 	Role       string      `json:"role"`
@@ -23,6 +10,7 @@ type ChatResp struct {
 	ToolName   string      `json:"tool_name,omitempty"`
 }
 
+// ToolCall represents a tool call made by an agent
 type ToolCall struct {
 	Id       string `json:"id"`
 	Type     string `json:"type"`
@@ -30,13 +18,4 @@ type ToolCall struct {
 		Name      string `json:"name"`
 		Arguments string `json:"arguments"`
 	} `json:"function"`
-}
-
-type Message struct {
-	Role         string      `json:"role"`
-	Content      string      `json:"content"`
-	ToolCalls    []*ToolCall `json:"tool_calls"`
-	ResponseMeta *struct {
-		FinishReason string `json:"finish_reason"`
-	} `json:"response_meta"`
 }
